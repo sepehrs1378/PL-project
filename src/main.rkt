@@ -100,15 +100,15 @@
      ((statement semicolon) 33)
      ((statements statement semicolon) 33))
     (statement
-     ((compound-stmt) 33)
+     ((compound-stmt) $1)
      ((simple-stmt) $1))
     (simple-stmt
      ((assignment) $1)
-     ((return-stmt) 33)
-     ((global-stmt) 33)
-     ((pass) 33)
-     ((break) 33)
-     ((continue) 33))
+     ((return-stmt) $1)
+     ((global-stmt) $1)
+     ((pass) $1)
+     ((break) $1)
+     ((continue) $1))
     (compound-stmt
      ((function-def) 33)
      ((if-stmt) 33)
@@ -116,10 +116,10 @@
     (assignment
      ((ID assign expression) (list $1 "=" $3)))
     (return-stmt
-     ((return) 33)
-     ((return expression) 33))
+     ((return) (return-stmt-exp empty-exp))
+     ((return expression) (return-stmt-exp $2)))
     (global-stmt
-     ((global ID) 33))
+     ((global ID) (global-stmt-exp $2)))
     (function-def
      ((def ID paranth-open params paranth-close colon statements) 33)
      ((def ID paranth-open paranth-close colon statements) 33))
@@ -127,27 +127,27 @@
      ((param-with-default) 33)
      ((params comma param-with-default) 33))
     (param-with-default
-     ((ID assign expression) 33))
+     ((ID assign expression) (param-with-default-exp $1 $3)))
     (if-stmt
-     ((if expression colon statements else-block) 33))
+     ((if expression colon statements else-block) (if-stmt-exp $2 $4 $5)))
     (else-block
-     ((else colon statements) 33))
+     ((else colon statements) $3))
     (for-stmt
-     ((for ID in expression colon statements) 33))
+     ((for ID in expression colon statements) (for-stmt-exp $2 $4 $6)))
     (expression
-     ((disjunction) 33))
+     ((disjunction) $1))
     (disjunction
-     ((conjunction) 33)
-     ((disjunction or conjunction) 33))
+     ((conjunction) $1)
+     ((disjunction or conjunction) (or-exp $1 $3)))
     (conjunction
-     ((inversion) 33)
-     ((conjunction and inversion) 33))
+     ((inversion) $1)
+     ((conjunction and inversion) (and-exp $1 $3)))
     (inversion
-     ((not inversion) 33)
-     ((comparison) 33))
+     ((not inversion) (not-exp $2))
+     ((comparison) $1))
     (comparison
      ((sum compare-op-sum-pairs) 33)
-     ((sum) 33))
+     ((sum) $1))
     (compare-op-sum-pairs
      ((compare-op-sum-pair) 33)
      ((compare-op-sum-pairs compare-op-sum-pair) 33))
@@ -199,6 +199,7 @@
      ((expression) 33))
     )))
 
+;------------------------------------------------------
 ;evalute function
 ;todo: implement it
 (define evalute
@@ -208,6 +209,9 @@
     ;(let ((parser-res (lang-parser my-lexer))) parser-res)
     33))
 
+;------------------------------------------------------
+;print function
+;todo: implement it in any way you want
 
 ;------------------------------------------------------
 ;store: todo doc
@@ -273,22 +277,27 @@
    33)
   (compare-op-sum-pair-exp
    33)
-  (equal-exp
+  (equal-sum-exp
    33)
-  (less-exp
+  (less-sum-exp
    33)
-  (greater-exp
+  (greater-sum-exp
    33)
   (add-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (sub-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (mul-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (div-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (factor-exp
-   33)
+   (sign string?)
+   (exp1 exp?))
   (power-exp
    33)
   (call-exp
@@ -304,6 +313,11 @@
   (expressions-exp
    33))
 
+;------------------------------------------------------
+;value-of
+(define value-of
+  (lambda (exp env)
+    33 #|todo: implement it.|#))
 
 ;------------------------------------------------------
 ;expval
@@ -314,6 +328,7 @@
   (proc-val (proc proc?))
   (void-val)
   (none-val))
+;todo: we might need return-val, break-val, continue-val to implement return, break and continue.
 
 ;proc
 (define-datatype procedure proc?
