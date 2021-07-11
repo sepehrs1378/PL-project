@@ -23,9 +23,9 @@
    ("]" (token-brack-close))
    ("(" (token-paranth-open))
    (")" (token-paranth-close))
-   ("True" (token-true))
-   ("False" (token-false))
-   ("None" (token-none))
+   ("True" (token-TRUE))
+   ("False" (token-FALSE))
+   ("None" (token-NONE))
    ("not" (token-not))
    ("or" (token-or))
    ("and" (token-and))
@@ -35,7 +35,7 @@
    ("in" (token-in))
    ("break" (token-break))
    ("continue" (token-continue))
-   ("if" (token-if))
+   ("if" (token-if)) 
    ("else" (token-else))
    ("def" (token-def))
    ("global" (token-global))
@@ -49,6 +49,7 @@
    (whitespace (lang-lexer input-port))
    ((eof) (token-EOF))))
 
+;tokens
 (define-tokens token1 (NUMBER))
 (define-tokens token2 (ID))
 (define-empty-tokens token3 (
@@ -67,9 +68,9 @@
                              brack-close
                              paranth-open
                              paranth-close
-                             true
-                             false
-                             none
+                             TRUE
+                             FALSE
+                             NONE
                              not
                              or
                              and
@@ -100,9 +101,9 @@
      ((statements statement semicolon) 33))
     (statement
      ((compound-stmt) 33)
-     ((simple-stmt) 33))
+     ((simple-stmt) $1))
     (simple-stmt
-     ((assignment) 33)
+     ((assignment) $1)
      ((return-stmt) 33)
      ((global-stmt) 33)
      ((pass) 33)
@@ -113,7 +114,7 @@
      ((if-stmt) 33)
      ((for-stmt) 33))
     (assignment
-     ((ID assign expression) 33))
+     ((ID assign expression) (list $1 "=" $3)))
     (return-stmt
      ((return) 33)
      ((return expression) 33))
@@ -185,9 +186,9 @@
      ((arguments comma expression) 33))
     (atom
      ((ID) 33)
-     ((true) 33)
-     ((false) 33)
-     ((none) 33)
+     ((TRUE) 33)
+     ((FALSE) 33)
+     ((NONE) 33)
      ((NUMBER) 33)
      ((list) 33))
     (list
@@ -198,7 +199,137 @@
      ((expression) 33))
     )))
 
-;test
-(define lex-this (lambda (lexer input) (lambda () (lexer input))))
-(define my-lexer (lex-this lang-lexer (open-input-string "counter = 2;")))
-(let ((parser-res (lang-parser my-lexer))) parser-res)
+;evalute function
+;todo: implement it
+(define evalute
+  (lambda (file-name)
+    ;(define lex-this (lambda (lexer input) (lambda () (lexer input))))
+    ;(define my-lexer (lex-this lang-lexer (open-input-string "counter = 2;")))
+    ;(let ((parser-res (lang-parser my-lexer))) parser-res)
+    33))
+
+
+;------------------------------------------------------
+;store: todo doc
+(define-datatype store store?
+  (empty-store)
+  (extend-store #|todo: complete this case.|#))
+
+(define init-store
+  (lambda ()
+    (empty-store)))
+
+;------------------------------------------------------
+;environment
+(define-datatype environment? env
+  (empty-env)
+  (extend-env
+   #|todo: complete this case.|#))
+
+(define init-env
+  (lambda ()
+    (empty-env)))
+
+;------------------------------------------------------
+;expression
+(define-datatype expression exp?
+  (statements-exp
+   (other-statements exp?)
+   (statment exp?))
+  (assignment-exp
+   33)
+  (return-stmt-exp
+   33)
+  (global-stmt-exp
+   33)
+  (pass-exp
+   33)
+  (break-exp
+   33)
+  (continue-exp
+   33)
+  (function-def-exp
+   33)
+  (if-stmt-exp
+   33)
+  (for-stmt-exp
+   33)
+  (params-exp
+   33)
+  (param-with-default-exp
+   33)
+  (expression-exp
+   33)
+  (or-exp
+   33)
+  (and-exp
+   33)
+  (not-exp
+   33)
+  (comparison-exp
+   33)
+  (compare-op-sum-pairs-exp
+   33)
+  (compare-op-sum-pair-exp
+   33)
+  (equal-exp
+   33)
+  (less-exp
+   33)
+  (greater-exp
+   33)
+  (add-exp
+   33)
+  (sub-exp
+   33)
+  (mul-exp
+   33)
+  (div-exp
+   33)
+  (factor-exp
+   33)
+  (power-exp
+   33)
+  (call-exp
+   33)
+  (list-cell-exp
+   33)
+  (arguments-exp
+   33)
+  (var-exp
+   33)
+  (list-exp
+   33)
+  (expressions-exp
+   33))
+
+
+;------------------------------------------------------
+;expval
+(define-datatype expval expval?
+  (int-val (num number?))
+  (bool-val (bool boolean?))
+  (list-val (lst list?))
+  (proc-val (proc proc?))
+  (void-val)
+  (none-val))
+
+;proc
+(define-datatype procedure proc?
+  (proc
+   (p-name string?)
+   (formal-params list?)
+   (default-exps list?)
+   (p-body exp?)))
+
+;-------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
