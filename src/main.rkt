@@ -162,35 +162,35 @@
     (gt-sum
      ((greater sum) 33))
     (sum
-     ((sum plus term) 33)
-     ((sum minus term) 33)
-     ((term) 33))
+     ((sum plus term) (add-exp $1 $3))
+     ((sum minus term) (sub-exp $1 $3))
+     ((term) $1))
     (term
-     ((term mul factor) 33)
-     ((term div factor) 33)
-     ((factor) 33))
+     ((term mul factor) (mul-exp $1 $3))
+     ((term div factor) (div-exp $1 $3))
+     ((factor) $1))
     (factor
-     ((plus factor) 33)
-     ((minus factor) 33)
-     ((power) 33))
+     ((plus factor) (factor-exp "+" $2))
+     ((minus factor) (factor-exp "-" $2))
+     ((power) $1))
     (power
-     ((atom pow factor) 33)
-     ((primary) 33))
+     ((atom pow factor) (power-exp $1 $3))
+     ((primary) $1))
     (primary
-     ((atom) 33)
-     ((primary brack-open expression brack-close) 33)
-     ((primary paranth-open paranth-close) 33)
-     ((primary paranth-open arguments paranth-close) 33))
+     ((atom) $1)
+     ((primary brack-open expression brack-close) (list-cell-exp $1 $3))
+     ((primary paranth-open paranth-close) (call-exp $1 empty-exp))
+     ((primary paranth-open arguments paranth-close) (call-exp $1 $3)))
     (arguments
      ((expression) 33)
      ((arguments comma expression) 33))
     (atom
-     ((ID) 33)
-     ((TRUE) 33)
-     ((FALSE) 33)
-     ((NONE) 33)
-     ((NUMBER) 33)
-     ((list) 33))
+     ((ID) (var-exp $1))
+     ((TRUE) (bool-val #t))
+     ((FALSE) (bool-val #f))
+     ((NONE) (none-val))
+     ((NUMBER) (num-val $1))
+     ((list) $1))
     (list
      ((brack-open expressions brack-close) 33)
      ((brack-open brack-close) 33))
@@ -233,6 +233,7 @@
 ;------------------------------------------------------
 ;expression
 (define-datatype expression exp?
+  (empty-exp) ;nothing -> used for epsilon in grammar
   (statements-exp
    (other-statements exp?)
    (statment exp?))
