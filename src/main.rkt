@@ -97,8 +97,8 @@
    (tokens token1 token2 token3)
    (grammar
     (statements
-     ((statement semicolon) 33)
-     ((statements statement semicolon) 33))
+     ((statement semicolon) (list $1))
+     ((statements statement semicolon) (append $1 (list $2))))
     (statement
      ((compound-stmt) $1)
      ((simple-stmt) $1))
@@ -110,11 +110,11 @@
      ((break) $1)
      ((continue) $1))
     (compound-stmt
-     ((function-def) 33)
-     ((if-stmt) 33)
-     ((for-stmt) 33))
+     ((function-def) $1)
+     ((if-stmt) $1)
+     ((for-stmt) $1))
     (assignment
-     ((ID assign expression) (list $1 "=" $3)))
+     ((ID assign expression) (assignment-exp $1 $3)))
     (return-stmt
      ((return) (return-stmt-exp empty-exp))
      ((return expression) (return-stmt-exp $2)))
@@ -124,8 +124,8 @@
      ((def ID paranth-open params paranth-close colon statements) 33)
      ((def ID paranth-open paranth-close colon statements) 33))
     (params
-     ((param-with-default) 33)
-     ((params comma param-with-default) 33))
+     ((param-with-default) (list $1))
+     ((params comma param-with-default) (append $1 (list $3))))
     (param-with-default
      ((ID assign expression) (param-with-default-exp $1 $3)))
     (if-stmt
@@ -182,8 +182,8 @@
      ((primary paranth-open paranth-close) (call-exp $1 empty-exp))
      ((primary paranth-open arguments paranth-close) (call-exp $1 $3)))
     (arguments
-     ((expression) 33)
-     ((arguments comma expression) 33))
+     ((expression) (list $1))
+     ((arguments comma expression) (append $1 (list $3))))
     (atom
      ((ID) (var-exp $1))
      ((TRUE) (bool-val #t))
@@ -192,11 +192,11 @@
      ((NUMBER) (num-val $1))
      ((list) $1))
     (list
-     ((brack-open expressions brack-close) 33)
-     ((brack-open brack-close) 33))
+     ((brack-open expressions brack-close) (list-exp $2))
+     ((brack-open brack-close) (list-exp (list empty-exp))))
     (expressions
-     ((expressions comma expression) 33)
-     ((expression) 33))
+     ((expressions comma expression) (append $1 (list $3)))
+     ((expression) (list $1)))
     )))
 
 ;------------------------------------------------------
@@ -235,8 +235,8 @@
     (empty-env)))
 
 ;------------------------------------------------------
-;expression
-(define-datatype expression exp?
+;exp
+(define-datatype exp exp?
   (empty-exp) ;nothing -> used for epsilon in grammar
   (statements-exp
    (other-statements exp?)
@@ -259,11 +259,9 @@
    33)
   (for-stmt-exp
    33)
-  (params-exp
-   33)
+;  (params-exp
+;   33)
   (param-with-default-exp
-   33)
-  (expression-exp
    33)
   (or-exp
    33)
@@ -304,14 +302,13 @@
    33)
   (list-cell-exp
    33)
-  (arguments-exp
-   33)
+;  (arguments-exp
+;   33)
   (var-exp
-   33)
+   (name string?))
   (list-exp
    33)
-  (expressions-exp
-   33))
+  )
 
 ;------------------------------------------------------
 ;value-of
