@@ -200,8 +200,8 @@
     )))
 
 ;------------------------------------------------------
-;evalute function
-(define evalute
+;evaluate function
+(define evaluate
   (lambda (file-name)
     (define ns (make-base-namespace))
 
@@ -210,7 +210,10 @@
           (define in (file->string file-name))
           (define lex-this (lambda (lexer input) (lambda () (lexer input))))
           (define my-lexer (lex-this lang-lexer (open-input-string in)))
-          (let ((parser-res (lang-parser my-lexer))) parser-res)
+          (let ((parser-res (lang-parser my-lexer)))
+            (initialize-store! the-store)
+            (initialize-env! the-global-env)
+            (value-of parser-res))
           ;todo: complete this.
        ]
       [else "File not found"]
@@ -231,11 +234,56 @@
  )
 
 ;------------------------------------------------------
-;store: todo doc
+;store: Each location may have arbitrary type of value.
+(define empty-store
+  (lambda () '()))
 
+(define the-store 'uninitialized)
+
+(define get-store
+  (lambda () the-store))
+
+(define initialize-store!
+  (lambda ()
+    (set! the-store (empty-store))))
+
+(define newref
+  (lambda (val)
+    (let ((next-ref (length the-store)))
+      (set! the-store (append the-store (list val)))
+      next-ref)))
+
+(define deref
+  (lambda (ref)
+    (list-ref the-store ref)))
+
+(define report-invalid-reference
+  (lambda (ref)
+    (eopl:error 'setref! "Invalid refrence: ~s" ref)))
+
+(define setref!
+  (lambda (ref val)
+    (set! the-store
+          (letrec
+              ((setref-inner
+                (lambda (store1 ref1)
+                  (cond
+                    ((null? store1)
+                     (report-invalid-reference ref))
+                    ((zero? ref1)
+                     (cons val (cdr store1)))
+                    (else
+                     (cons
+                      (car store1)
+                      (setref-inner
+                       (cdr store1) (- ref1 1))))))))
+            (setref-inner the-store ref)))))
+
+;---
+#| todo
 (define reference?
-(lambda (v)
-(integer? v)))
+  (lambda (v)
+    (integer? v)))
 
 (define-datatype store store?
   (empty-store)
@@ -288,9 +336,51 @@
      (apply-env saved-env var)
      (value-of exp1 saved-env))
     (num-val 25)))
-;------------------------------------------------------
-;environment
+|#
 
+;------------------------------------------------------
+;environment: Accepts (string, expval) pairs.
+(define report-no-binding-found
+  (lambda (search-var)
+    (eopl:error 'apply-env "No binding for ~s" search-var)))
+
+(define report-invalid-env
+  (lambda (env)
+     (eopl:error 'apply-env "Bad environment: ~s" env)))
+  
+(define-datatype environment env?
+  (empty-env)
+  (extend-env
+    (var string?)
+    (val expval?)
+    (saved-env env?)))
+
+(define apply-env
+  (lambda (search-var env)
+    (cases environment env
+      (empty-env ()
+         (report-no-binding-found search-var))
+      (extend-env (saved-var saved-val saved-env)
+         (if (eqv? saved-var search-var)
+           saved-val
+           (apply-env search-var saved-env)))
+      (else
+          (report-invalid-env env))
+      )))
+
+(define init-env
+  (lambda ()
+    (empty-env)))
+
+;doc: Used to initialize the-global-env
+(define initialize-env!
+  (lambda (env)
+    (set! env (empty-env))))
+
+;doc: Used for global variables and functions
+(define the-global-env 'uninitialized)
+
+#|todo
 (define report-no-binding-found
   (lambda (search-var)
     (eopl:error ’apply-env "No binding for ~s" search-var)))
@@ -327,11 +417,10 @@
           (report-invalid-env env))
       )))
 
-
-
 (define init-env
   (lambda ()
     (empty-env)))
+|#
 
 ;------------------------------------------------------
 ;exp
@@ -595,9 +684,10 @@
   (proc-val (proc proc?))
   (void-val)
   (none-val)
+  (ref-val (ref number?))
   (break-val)
   (continue-val)
-  (return-val(val expval?))
+  (return-val(val expval?)))
 
 ;expval extractors
 (define expval->num
@@ -618,6 +708,12 @@
       (list-val (lst) lst)
       (else report-type-mismatch 'list val))))
 
+(define expval->ref
+  (lambda (val)
+    (cases expval val
+      (ref-val (ref) ref)
+      (else report-type-mismatch 'ref val))))
+
 ;type error report functions
 (define report-type-mismatch
   (lambda (expected val)
@@ -636,10 +732,6 @@
    (formal-params list?)
    (default-exps list?)
    (p-body exp?)))
-
-;-------------------------------------------------------
-(define my-global-env null)
-(define my-store null)
 
 ;-------------------------------------------------------
 ;test
