@@ -97,8 +97,8 @@
    (tokens token1 token2 token3)
    (grammar
     (statements
-     ((statement semicolon) (statements-exp (list $1)))
-     ((statements statement semicolon) (statements-exp (append (exp->statements $1) (list $2)))))
+     ((statement semicolon) (list $1))
+     ((statements statement semicolon) (append $1 (list $2))))
     (statement
      ((compound-stmt) $1)
      ((simple-stmt) $1))
@@ -106,9 +106,9 @@
      ((assignment) $1)
      ((return-stmt) $1)
      ((global-stmt) $1)
-     ((pass) (pass-exp))
-     ((break) (break-exp))
-     ((continue) (continue-exp)))
+     ((pass) $1)
+     ((break) $1)
+     ((continue) $1))
     (compound-stmt
      ((function-def) $1)
      ((if-stmt) $1)
@@ -121,11 +121,11 @@
     (global-stmt
      ((global ID) (global-stmt-exp $2)))
     (function-def
-     ((def ID paranth-open params paranth-close colon statements) (function-def-exp $2 $4 $7))
-     ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp (list empty-exp)) $6)))
+     ((def ID paranth-open params paranth-close colon statements) 33)
+     ((def ID paranth-open paranth-close colon statements) 33))
     (params
-     ((param-with-default) (params-exp (list $1)))
-     ((params comma param-with-default) (params-exp (append (exp->params $1) (list $3)))))
+     ((param-with-default) (list $1))
+     ((params comma param-with-default) (append $1 (list $3))))
     (param-with-default
      ((ID assign expression) (param-with-default-exp $1 $3)))
     (if-stmt
@@ -146,21 +146,21 @@
      ((not inversion) (not-exp $2))
      ((comparison) $1))
     (comparison
-     ((sum compare-op-sum-pairs) (comparison-exp $1 $2))
+     ((sum compare-op-sum-pairs) 33)
      ((sum) $1))
     (compare-op-sum-pairs
-     ((compare-op-sum-pair) (compare-op-sum-pairs-exp (list $1)))
-     ((compare-op-sum-pairs compare-op-sum-pair) (compare-op-sum-pairs-exp (append (exp->compare-op-sum-pairs $1) (list $2)))))
+     ((compare-op-sum-pair) 33)
+     ((compare-op-sum-pairs compare-op-sum-pair) 33))
     (compare-op-sum-pair
-     ((eq-sum) $1)
-     ((lt-sum) $1)
-     ((gt-sum) $1))
+     ((eq-sum) 33)
+     ((lt-sum) 33)
+     ((gt-sum) 33))
     (eq-sum
-     ((equal sum) (equal-sum-exp $2)))
+     ((equal sum) 33))
     (lt-sum
-     ((less sum) (less-sum-exp $2)))
+     ((less sum) 33))
     (gt-sum
-     ((greater sum) (greater-sum-exp $2)))
+     ((greater sum) 33))
     (sum
      ((sum plus term) (add-exp $1 $3))
      ((sum minus term) (sub-exp $1 $3))
@@ -179,11 +179,11 @@
     (primary
      ((atom) $1)
      ((primary brack-open expression brack-close) (list-cell-exp $1 $3))
-     ((primary paranth-open paranth-close) (call-exp $1 (arguments-exp (list empty-exp))))
+     ((primary paranth-open paranth-close) (call-exp $1 empty-exp))
      ((primary paranth-open arguments paranth-close) (call-exp $1 $3)))
     (arguments
-     ((expression) (arguments-exp (list $1)))
-     ((arguments comma expression) (arguments-exp (append (exp->arguments $1) (list $3)))))
+     ((expression) (list $1))
+     ((arguments comma expression) (append $1 (list $3))))
     (atom
      ((ID) (var-exp $1))
      ((TRUE) (bool-val #t))
@@ -193,30 +193,21 @@
      ((list) $1))
     (list
      ((brack-open expressions brack-close) (list-exp $2))
-     ((brack-open brack-close) (list-exp (expressions-exp (list empty-exp)))))
+     ((brack-open brack-close) (list-exp (list empty-exp))))
     (expressions
-     ((expressions comma expression) (expressions-exp (append (exp->expressions $1) (list $3))))
-     ((expression) (expressions-exp (list $1))))
+     ((expressions comma expression) (append $1 (list $3)))
+     ((expression) (list $1)))
     )))
 
 ;------------------------------------------------------
 ;evalute function
+;todo: implement it
 (define evalute
   (lambda (file-name)
-    (define ns (make-base-namespace))
-
-    (cond
-      [(file-exists? file-name)
-          (define in (file->string file-name))
-          (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-          (define my-lexer (lex-this lang-lexer (open-input-string in)))
-          (let ((parser-res (lang-parser my-lexer))) parser-res)
-       ]
-      [else "File not found"]
-     )
-   )
- )
-
+    ;(define lex-this (lambda (lexer input) (lambda () (lexer input))))
+    ;(define my-lexer (lex-this lang-lexer (open-input-string "counter = 2;")))
+    ;(let ((parser-res (lang-parser my-lexer))) parser-res)
+    33))
 
 ;------------------------------------------------------
 ;print function
@@ -231,20 +222,102 @@
 
 ;------------------------------------------------------
 ;store: todo doc
+
+(define reference?
+(lambda (v)
+(integer? v)))
+
 (define-datatype store store?
   (empty-store)
-  (extend-store #|todo: complete this case.|#))
+  (extend-store
+   (ref reference?)
+   (val identifier?)
+   (st store?)))
+  
 
 (define init-store
   (lambda ()
     (empty-store)))
 
+(define newref
+  (lambda (val)
+    (let ((next-ref (length the-store)))
+      (set! the-store (append the-store (list val)))
+      next-ref)))
+
+(define deref 
+  (lambda (var) 
+    (let l (apply-env saved-env var))
+    (list-ref  the-store  l)))
+
+(define report-invalid-refrence
+  (lambda (ref)
+    (eopl:error ’setref! "Invalid refrence: ~s" ref)))
+
+(define setref!
+  (lambda (ref val)
+    (set! the-store
+          (letrec
+              ((setref-inner
+                (lambda (store1 ref1)
+                  (cond
+                    ((null? store1)
+                     (report-invalid-reference ref the-store))
+                    ((zero? ref1)
+                     (cons val (cdr store1)))
+                    (else
+                     (cons
+                      (car store1)
+                      (setref-inner
+                       (cdr store1) (- ref1 1))))))))
+            (setref-inner the-store ref)))))
+
+(define setref 
+  (lambda (var exp1)
+    (setref!
+     (apply-env saved-env var)
+     (value-of exp1 saved-env))
+    (num-val 25)))
 ;------------------------------------------------------
 ;environment
-(define-datatype env env?
+
+(define report-no-binding-found
+  (lambda (search-var)
+    (eopl:error ’apply-env "No binding for ~s" search-var)))
+(define report-invalid-env
+  (lambda (env)
+     (eopl:error ’apply-env "Bad environment: ~s" env)))
+  
+(define-datatype env? env
   (empty-env)
   (extend-env
-   #|todo: complete this case.|#))
+    (var identifier?)
+    (val expval?)
+    (env environment?))
+  (extend-env-rec
+     (p-name identifier?)
+     (b-vars list?)
+     (body expression?)
+     (env environment?)))
+
+(define apply-env
+  (lambda (env search-var)
+    (cases environment env
+      (empty-env ()
+         (report-no-binding-found search-var))
+      (extend-env (saved-var search-var)
+         (if (eqv? saved-var search-var)
+           saved-val
+           (apply-env saved-env search-env)))
+      (extend-env-rec (p-name b-vars p-body saved-env)
+         (if (eqv? search-var p-name)
+             (proc-val (procedure b-vars p-body env))
+             (apply-env saved-env search-var)))
+      (else
+          (report-invalid-env env))
+      )))
+
+
 
 (define init-env
   (lambda ()
@@ -255,7 +328,8 @@
 (define-datatype exp exp?
   (empty-exp) ;nothing -> used as epsilon in grammar
   (statements-exp
-   (statements-list list?))
+   (other-statements exp?)
+   (statment exp?))
   (assignment-exp
    (ID string?)
    (rhs exp?))
@@ -267,9 +341,7 @@
   (break-exp)
   (continue-exp)
   (function-def-exp
-   (ID string?)
-   (params exp?)
-   (statements exp?))
+   33)
   (if-stmt-exp
    (condition exp?)
    (true-statements exp?)
@@ -278,8 +350,8 @@
    (iterator-ID string?)
    (lst exp?)
    (statements exp?))
-  (params-exp
-   (exps-list list?))
+;  (params-exp
+;   33)
   (param-with-default-exp
    (ID string?)
    (default exp?))
@@ -292,18 +364,17 @@
   (not-exp
    (exp1 exp?))
   (comparison-exp
-   (sum exp?)
-   (compare-pairs exp?))
+   33)
   (compare-op-sum-pairs-exp
-   (compare-list list?))
-  ;(compare-op-sum-pair-exp
-  ; 33)
+   33)
+  (compare-op-sum-pair-exp
+   33)
   (equal-sum-exp
-   (sum exp?))
+   33)
   (less-sum-exp
-   (sum exp?))
+   33)
   (greater-sum-exp
-   (sum exp?))
+   33)
   (add-exp
    (exp1 exp?)
    (exp2 exp?))
@@ -323,57 +394,29 @@
    (exp1 exp?)
    (exp2 exp?))
   (call-exp
-   (ID string?)
-   (arguments exp?))
+   33)
   (list-cell-exp
-   (lst exp?)
-   (index exp?))
-  (arguments-exp
-   (exps-list list?))
+   33)
+;  (arguments-exp
+;   33)
   (var-exp
    (name string?))
   (list-exp
-   (expressions exp?))
-  (expressions-exp
-   (exps-list list?))
+   33)
   )
 
-;exp extractors
 (define exp->statements
-  (lambda (exp1)
-    (cases exp exp1
-      (statements-exp (lst) lst)
-      (else report-type-mismatch 'statements-exp exp1))))
+  (lambda (exp)
+    (cases exp? exp
+      (statements-exp () 33)
+      (else 33))))
 
-(define exp->expressions
-  (lambda (exp1)
-    (cases exp exp1
-      (expressions-exp (lst) lst)
-      (else report-type-mismatch 'expressions-exp exp1))))
-
-(define exp->params
-  (lambda (exp1)
-    (cases exp exp1
-      (params-exp (lst) lst)
-      (else report-type-mismatch 'params-exp exp1))))
-
-(define exp->arguments
-  (lambda (exp1)
-    (cases exp exp1
-      (arguments-exp (lst) lst)
-      (else report-type-mismatch 'arguments-exp exp1))))
-
-(define exp->compare-op-sum-pairs
-  (lambda (exp1)
-    (cases exp exp1
-      (compare-op-sum-pairs-exp (lst) lst)
-      (else report-type-mismatch 'compare-op-sum-pairs-exp exp1))))
 
 ;------------------------------------------------------
 ;value-of
 (define value-of
-  (lambda (exp1 env)
-    (cases exp exp1
+  (lambda (exp env)
+    (cases exp? exp
       (empty-exp ;nothing -> used as epsilon in grammar
        (void-val)) 
       (statements-exp
@@ -400,8 +443,8 @@
                          (value-of exp3 env))))
       (for-stmt-exp
        33)
-      (params-exp
-       33)
+      ;  (params-exp
+      ;   33)
       (param-with-default-exp
        33)
       (or-exp (exp1 exp2)
@@ -416,10 +459,11 @@
                (let ([bool1 (expval->bool (value-of exp1 env))])
                  (bool-val (not bool1))))
       (comparison-exp
-       (sum exp?)
-       (compare-pairs exp?))
+       33)
       (compare-op-sum-pairs-exp
-       (compare-list list?))
+       33)
+      (compare-op-sum-pair-exp
+       33)
       (equal-sum-exp
        33)
       (less-sum-exp
@@ -471,31 +515,12 @@
        33)
       (list-cell-exp
        33)
-      (arguments-exp
-       33)
-      (var-exp (var-name)
-               (let ([ref1 (apply-env var-name env)])
-                 (let ([w (deref ref1)])
-                   (if (expval? w)
-                       w
-                       (let ([val1 (value-of-thunk w)])
-                         (setref! ref1 val1)
-                         val1)))))
+      ;  (arguments-exp
+      ;   33)
+      (var-exp
+       (name string?))
       (list-exp
        33))))
-
-;------------------------------------------------------
-;thunk
-(define-datatype thunk thunk?
-  (a-thunk
-   (exp exp?)
-   (saved-env env?)))
-
-(define value-of-thunk
-  (lambda (th)
-    (cases thunk th
-      (a-thunk (exp saved-env)
-               (value-of exp saved-env)))))
 
 ;------------------------------------------------------
 ;expval
@@ -508,22 +533,21 @@
   (none-val))
 ;todo: we might need return-val, break-val, continue-val to implement return, break and continue.
 
-;expval extractors
 (define expval->num
   (lambda (val)
-    (cases expval val
+    (cases expval? val
       (num-val (num) num)
       (else report-type-mismatch 'num val))))
 
 (define expval->bool
   (lambda (val)
-    (cases expval val
+    (cases expval? val
       (bool-val (bool) bool)
       (else report-type-mismatch 'bool val))))
 
 (define expval->list
   (lambda (val)
-    (cases expval val
+    (cases expval? val
       (list-val (lst) lst)
       (else report-type-mismatch 'list val))))
 
