@@ -41,6 +41,7 @@
    ("global" (token-global))
    ("return" (token-return))
    ("pass" (token-pass))
+   ("print" (token-print))
    ((:or (:+ (char-range #\0 #\9)) (:: (:+ (char-range #\0 #\9)) #\. (:+ (char-range #\0 #\9)))) (token-NUMBER (string->number lexeme)))
    ((::
      (:or (char-range #\a #\z) (char-range #\A #\Z) #\_)
@@ -86,6 +87,7 @@
                              global
                              return
                              pass
+                             print
                              ))
 
 ;parser
@@ -106,6 +108,7 @@
      ((assignment) $1)
      ((return-stmt) $1)
      ((global-stmt) $1)
+     ((print-stmt) $1)
      ((pass) (pass-exp))
      ((break) (break-exp))
      ((continue) (continue-exp)))
@@ -120,6 +123,8 @@
      ((return expression) (return-stmt-exp $2)))
     (global-stmt
      ((global ID) (global-stmt-exp $2)))
+    (print-stmt
+     ((print paranth-open atom paranth-close) (print-stmt-exp $3)))
     (function-def
      ((def ID paranth-open params paranth-close colon statements) (function-def-exp $2 $4 $7))
      ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp (list empty-exp)) $6)))
@@ -214,7 +219,6 @@
             (initialize-store! the-store)
             (initialize-env! the-global-env)
             (value-of parser-res))
-          ;todo: complete this.
        ]
       [else "File not found"]
      )
@@ -435,6 +439,8 @@
    (exp1 exp?))
   (global-stmt-exp
    (ID string?))
+  (print-stmt-exp
+   (atom exp?))
   (pass-exp)
   (break-exp)
   (continue-exp)
@@ -563,6 +569,8 @@
                        (return-val (value-of exp1 env)))
       (global-stmt-exp (ID)
                        33)
+      (print-stmt-exp (atom)
+                      33)
       (pass-exp ()
                 (void-val))
       (break-exp ()
