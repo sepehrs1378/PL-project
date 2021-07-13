@@ -201,17 +201,33 @@
 
 ;------------------------------------------------------
 ;evalute function
-;todo: implement it
 (define evalute
   (lambda (file-name)
-    ;(define lex-this (lambda (lexer input) (lambda () (lexer input))))
-    ;(define my-lexer (lex-this lang-lexer (open-input-string "counter = 2;")))
-    ;(let ((parser-res (lang-parser my-lexer))) parser-res)
-    33))
+    (define ns (make-base-namespace))
+
+    (cond
+      [(file-exists? file-name)
+          (define in (file->string file-name))
+          (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+          (define my-lexer (lex-this lang-lexer (open-input-string in)))
+          (let ((parser-res (lang-parser my-lexer))) parser-res)
+       ]
+      [else "File not found"]
+     )
+   )
+ )
+
 
 ;------------------------------------------------------
 ;print function
-;todo: implement it in any way you want
+(define (atom? x) (not (pair? x)))
+
+(define (print inp)
+  (cond
+    [(list? inp) (for-each (lambda (each_atom) (display each_atom) (display " ")) inp) (newline)]
+    [(atom? inp) (display inp)]
+   )
+ )
 
 ;------------------------------------------------------
 ;store: todo doc
