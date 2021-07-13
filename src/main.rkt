@@ -347,8 +347,11 @@
        33)
       (function-def-exp
        33)
-      (if-stmt-exp
-       33)
+      (if-stmt-exp (exp1 exp2 exp3)
+                   (let ([cnd (expval->bool (value-of exp1 env))])
+                     (if cnd
+                         (value-of exp2 env)
+                         (value-of exp3 env))))
       (for-stmt-exp
        33)
       ;  (params-exp
