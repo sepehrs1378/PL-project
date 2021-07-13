@@ -211,7 +211,14 @@
 
 ;------------------------------------------------------
 ;print function
-;todo: implement it in any way you want
+(define (atom? x) (not (pair? x)))
+
+(define (print inp)
+  (cond
+    [(list? inp) (for-each (lambda (each_atom) (display each_atom) (display " ")) inp) (newline)]
+    [(atom? inp) (display inp)]
+   )
+ )
 
 ;------------------------------------------------------
 ;store: todo doc
