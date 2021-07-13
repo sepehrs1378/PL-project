@@ -225,7 +225,7 @@
 
 ;------------------------------------------------------
 ;environment
-(define-datatype environment? env
+(define-datatype env? env
   (empty-env)
   (extend-env
    #|todo: complete this case.|#))
@@ -237,38 +237,43 @@
 ;------------------------------------------------------
 ;exp
 (define-datatype exp exp?
-  (empty-exp) ;nothing -> used for epsilon in grammar
+  (empty-exp) ;nothing -> used as epsilon in grammar
   (statements-exp
    (other-statements exp?)
    (statment exp?))
   (assignment-exp
-   33)
+   (ID string?)
+   (rhs exp?))
   (return-stmt-exp
-   33)
+   (exp1 exp?))
   (global-stmt-exp
-   33)
-  (pass-exp
-   33)
-  (break-exp
-   33)
-  (continue-exp
-   33)
+   (ID string?))
+  (pass-exp)
+  (break-exp)
+  (continue-exp)
   (function-def-exp
    33)
   (if-stmt-exp
-   33)
+   (condition exp?)
+   (true-statements exp?)
+   (false-statements exp?))
   (for-stmt-exp
-   33)
+   (iterator-ID string?)
+   (lst exp?)
+   (statements exp?))
 ;  (params-exp
 ;   33)
   (param-with-default-exp
-   33)
+   (ID string?)
+   (default exp?))
   (or-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (and-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (not-exp
-   33)
+   (exp1 exp?))
   (comparison-exp
    33)
   (compare-op-sum-pairs-exp
@@ -297,7 +302,8 @@
    (sign string?)
    (exp1 exp?))
   (power-exp
-   33)
+   (exp1 exp?)
+   (exp2 exp?))
   (call-exp
    33)
   (list-cell-exp
@@ -310,16 +316,124 @@
    33)
   )
 
+(define exp->statements
+  (lambda (exp)
+    (cases exp? exp
+      (statements-exp () 33)
+      (else 33))))
+
+
 ;------------------------------------------------------
 ;value-of
 (define value-of
   (lambda (exp env)
-    33 #|todo: implement it.|#))
+    (cases exp? exp
+      (empty-exp ;nothing -> used as epsilon in grammar
+       (void-val)) 
+      (statements-exp
+       (other-statements exp?)
+       (statment exp?))
+      (assignment-exp
+       33)
+      (return-stmt-exp
+       33)
+      (global-stmt-exp
+       33)
+      (pass-exp
+       (void-val))
+      (break-exp
+       33)
+      (continue-exp
+       33)
+      (function-def-exp
+       33)
+      (if-stmt-exp
+       33)
+      (for-stmt-exp
+       33)
+      ;  (params-exp
+      ;   33)
+      (param-with-default-exp
+       33)
+      (or-exp (exp1 exp2)
+              (let ([bool1 (expval->bool (value-of exp1 env))]
+                    [bool2 (expval->bool (value-of exp2 env))])
+                (bool-val (or bool1 bool2))))
+      (and-exp (exp1 exp2)
+               (let ([bool1 (expval->bool (value-of exp1 env))]
+                     [bool2 (expval->bool (value-of exp2 env))])
+                 (bool-val (and bool1 bool2))))
+      (not-exp (exp1)
+               (let ([bool1 (expval->bool (value-of exp1 env))])
+                 (bool-val (not bool1))))
+      (comparison-exp
+       33)
+      (compare-op-sum-pairs-exp
+       33)
+      (compare-op-sum-pair-exp
+       33)
+      (equal-sum-exp
+       33)
+      (less-sum-exp
+       33)
+      (greater-sum-exp
+       33)
+      (add-exp (exp1 exp2)
+               (let ([let val1 (value-of exp1 env)])
+                 (cases expval? val1
+                   (num-val (num1)
+                            (let ([num2 (expval->num (value-of exp2 env))])
+                              (num-val (+ num1 num2))))
+                   (bool-val (bool1)
+                             (let ([bool2 (expval->bool (value-of exp2 env))])
+                               (bool-val (or bool1 bool2))))
+                   (else report-type-error))))
+      (sub-exp (exp1 exp2)
+               (let ([num1 (expval->num (value-of exp1 env))]
+                     [num2 (expval->num (value-of exp2 env))])
+                 (num-val (- num1 num2))))
+      (mul-exp (exp1 exp2)
+               (let ([val1 (value-of exp1 env)])
+                 (cases expval? val1
+                   (num-val (num1)
+                            (if (zero? num1)
+                                (num-val 0)
+                                (let ([num2 (expval->num (value-of exp2 env))])
+                                  (num-val (* num1 num2)))))
+                   (bool-val (bool1)
+                             (if (not bool1)
+                                 (bool-val #f)
+                                 (let ([bool2 (expval->bool (value-of exp2 env))])
+                                   (bool-val (and bool1 bool2)))))
+                   (else report-type-error))))
+      (div-exp (exp1 exp2)
+               (let ([num1 (expval->num (value-of exp1 env))]
+                     [num2 (expval->num (value-of exp2 env))])
+                 (num-val (/ num1 num2))))
+      (factor-exp (sign exp1)
+                  (let ([num1 (expval->num (value-of exp1 env))])
+                    (if (equal? sign "+")
+                        (num-val num1)
+                        (num-val (- 0 num1)))))
+      (power-exp (exp1 exp2)
+                 (let ([num1 (expval->num (value-of exp1 env))]
+                       [num2 (expval->num (value-of exp2 env))])
+                   (num-val (expt num1 num2))))
+      (call-exp
+       33)
+      (list-cell-exp
+       33)
+      ;  (arguments-exp
+      ;   33)
+      (var-exp
+       (name string?))
+      (list-exp
+       33))))
 
 ;------------------------------------------------------
 ;expval
 (define-datatype expval expval?
-  (int-val (num number?))
+  (num-val (num number?))
   (bool-val (bool boolean?))
   (list-val (lst list?))
   (proc-val (proc proc?))
@@ -327,6 +441,35 @@
   (none-val))
 ;todo: we might need return-val, break-val, continue-val to implement return, break and continue.
 
+(define expval->num
+  (lambda (val)
+    (cases expval? val
+      (num-val (num) num)
+      (else report-type-mismatch 'num val))))
+
+(define expval->bool
+  (lambda (val)
+    (cases expval? val
+      (bool-val (bool) bool)
+      (else report-type-mismatch 'bool val))))
+
+(define expval->list
+  (lambda (val)
+    (cases expval? val
+      (list-val (lst) lst)
+      (else report-type-mismatch 'list val))))
+
+;type error report functions
+(define report-type-mismatch
+  (lambda (expected val)
+    (printf "Type mismatched: Expected ~s but got ~s\n", expected val)))
+
+(define report-type-error
+  (lambda ()
+    (printf "Type error\n")))
+
+
+;-------------------------------------------------------
 ;proc
 (define-datatype procedure proc?
   (proc
