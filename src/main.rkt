@@ -232,20 +232,102 @@
 
 ;------------------------------------------------------
 ;store: todo doc
+
+(define reference?
+(lambda (v)
+(integer? v)))
+
 (define-datatype store store?
   (empty-store)
-  (extend-store #|todo: complete this case.|#))
+  (extend-store
+   (ref reference?)
+   (val identifier?)
+   (st store?)))
+  
 
 (define init-store
   (lambda ()
     (empty-store)))
 
+(define newref
+  (lambda (val)
+    (let ((next-ref (length the-store)))
+      (set! the-store (append the-store (list val)))
+      next-ref)))
+
+(define deref 
+  (lambda (var) 
+    (let l (apply-env saved-env var))
+    (list-ref  the-store  l)))
+
+(define report-invalid-refrence
+  (lambda (ref)
+    (eopl:error ’setref! "Invalid refrence: ~s" ref)))
+
+(define setref!
+  (lambda (ref val)
+    (set! the-store
+          (letrec
+              ((setref-inner
+                (lambda (store1 ref1)
+                  (cond
+                    ((null? store1)
+                     (report-invalid-reference ref the-store))
+                    ((zero? ref1)
+                     (cons val (cdr store1)))
+                    (else
+                     (cons
+                      (car store1)
+                      (setref-inner
+                       (cdr store1) (- ref1 1))))))))
+            (setref-inner the-store ref)))))
+
+(define setref 
+  (lambda (var exp1)
+    (setref!
+     (apply-env saved-env var)
+     (value-of exp1 saved-env))
+    (num-val 25)))
 ;------------------------------------------------------
 ;environment
-(define-datatype env env?
+
+(define report-no-binding-found
+  (lambda (search-var)
+    (eopl:error ’apply-env "No binding for ~s" search-var)))
+(define report-invalid-env
+  (lambda (env)
+     (eopl:error ’apply-env "Bad environment: ~s" env)))
+  
+(define-datatype env? env
   (empty-env)
   (extend-env
-   #|todo: complete this case.|#))
+    (var identifier?)
+    (val expval?)
+    (env environment?))
+  (extend-env-rec
+     (p-name identifier?)
+     (b-vars list?)
+     (body expression?)
+     (env environment?)))
+
+(define apply-env
+  (lambda (env search-var)
+    (cases environment env
+      (empty-env ()
+         (report-no-binding-found search-var))
+      (extend-env (saved-var search-var)
+         (if (eqv? saved-var search-var)
+           saved-val
+           (apply-env saved-env search-env)))
+      (extend-env-rec (p-name b-vars p-body saved-env)
+         (if (eqv? search-var p-name)
+             (proc-val (procedure b-vars p-body env))
+             (apply-env saved-env search-var)))
+      (else
+          (report-invalid-env env))
+      )))
+
+
 
 (define init-env
   (lambda ()
@@ -515,7 +597,7 @@
   (none-val)
   (break-val)
   (continue-val)
-  (return-val) (val expval?))
+  (return-val(val expval?))
 
 ;expval extractors
 (define expval->num
