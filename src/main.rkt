@@ -211,6 +211,7 @@
           (define lex-this (lambda (lexer input) (lambda () (lexer input))))
           (define my-lexer (lex-this lang-lexer (open-input-string in)))
           (let ((parser-res (lang-parser my-lexer))) parser-res)
+          ;todo: complete this.
        ]
       [else "File not found"]
      )
@@ -374,23 +375,29 @@
 (define value-of
   (lambda (exp1 env)
     (cases exp exp1
-      (empty-exp ;nothing -> used as epsilon in grammar
-       (void-val)) 
-      (statements-exp
-       (other-statements exp?)
-       (statment exp?))
-      (assignment-exp
-       33)
-      (return-stmt-exp
-       33)
-      (global-stmt-exp
-       33)
-      (pass-exp
-       (void-val))
-      (break-exp
-       33)
-      (continue-exp
-       33)
+      (empty-exp () ;nothing -> used as epsilon in grammar
+                 (void-val)) 
+      (statements-exp (lst)
+                      (let loop ([stmt-list lst])
+                        (if (null? stmt-list)
+                            (void-val)
+                            (let ([val1 (value-of (car stmt-list) env)])
+                              (cases expval val1
+                                (void-val ()
+                                          (loop (cdr stmt-list)))
+                                (else val1))))))
+      (assignment-exp (ID rhs)
+                      33)
+      (return-stmt-exp (exp1)
+                       (return-val (value-of exp1 env)))
+      (global-stmt-exp (ID)
+                       33)
+      (pass-exp ()
+                (void-val))
+      (break-exp ()
+                 (break-val))
+      (continue-exp ()
+                    (continue-val))
       (function-def-exp
        33)
       (if-stmt-exp (exp1 exp2 exp3)
@@ -428,7 +435,7 @@
        33)
       (add-exp (exp1 exp2)
                (let ([let val1 (value-of exp1 env)])
-                 (cases expval? val1
+                 (cases expval val1
                    (num-val (num1)
                             (let ([num2 (expval->num (value-of exp2 env))])
                               (num-val (+ num1 num2))))
@@ -442,7 +449,7 @@
                  (num-val (- num1 num2))))
       (mul-exp (exp1 exp2)
                (let ([val1 (value-of exp1 env)])
-                 (cases expval? val1
+                 (cases expval val1
                    (num-val (num1)
                             (if (zero? num1)
                                 (num-val 0)
@@ -505,8 +512,10 @@
   (list-val (lst list?))
   (proc-val (proc proc?))
   (void-val)
-  (none-val))
-;todo: we might need return-val, break-val, continue-val to implement return, break and continue.
+  (none-val)
+  (break-val)
+  (continue-val)
+  (return-val) (val expval?))
 
 ;expval extractors
 (define expval->num
@@ -547,8 +556,13 @@
    (p-body exp?)))
 
 ;-------------------------------------------------------
+(define my-global-env null)
+(define my-store null)
 
-
+;-------------------------------------------------------
+;test
+(define test-file-name "any.txt")
+(evaluate test-file-name)
 
 
 
