@@ -827,7 +827,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "for-continue_in.txt"))
+(define test-file-name (string-append test-dir "fib-function_in.txt"))
 (evaluate test-file-name)
 
 
