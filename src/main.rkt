@@ -184,24 +184,24 @@
     (primary
      ((atom) $1)
      ((primary brack-open expression brack-close) (list-cell-exp $1 $3))
-     ((primary paranth-open paranth-close) (call-exp $1 (arguments-exp (list empty-exp))))
+     ((primary paranth-open paranth-close) (call-exp $1 (arguments-exp null))) ;todo: null or (list empty-exp)?
      ((primary paranth-open arguments paranth-close) (call-exp $1 $3)))
     (arguments
      ((expression) (arguments-exp (list $1)))
      ((arguments comma expression) (arguments-exp (append (exp->arguments $1) (list $3)))))
     (atom
      ((ID) (var-exp $1))
-     ((TRUE) (bool-val #t))
-     ((FALSE) (bool-val #f))
-     ((NONE) (none-val))
-     ((NUMBER) (num-val $1))
+     ((TRUE) (bool-exp #t))
+     ((FALSE) (bool-exp #f))
+     ((NONE) (none-exp))
+     ((NUMBER) (num-exp $1))
      ((list) $1))
     (list
      ((brack-open expressions brack-close) (list-exp $2))
-     ((brack-open brack-close) (list-exp (expressions-exp (list empty-exp)))))
+     ((brack-open brack-close) (list-exp null))) ;todo: (list empty-exp) or null?
     (expressions
-     ((expressions comma expression) (expressions-exp (append (exp->expressions $1) (list $3))))
-     ((expression) (expressions-exp (list $1))))
+     ((expressions comma expression) (append $1 (list $3)))
+     ((expression) (list $1)))
     )))
 
 ;------------------------------------------------------
@@ -212,31 +212,33 @@
 
     (cond
       [(file-exists? file-name)
-          (define in (file->string file-name))
-          (define lex-this (lambda (lexer input) (lambda () (lexer input))))
-          (define my-lexer (lex-this lang-lexer (open-input-string in)))
-          (let ((parser-res (lang-parser my-lexer)))
-            (initialize-store! the-store)
-            (initialize-env! the-global-env #t)
-            (initialize-env! the-scope-env #t)
-            (value-of parser-res))
+       (println (string-append "Test: " file-name))
+       (define in (file->string file-name))
+       (define lex-this (lambda (lexer input) (lambda () (lexer input))))
+       (define my-lexer (lex-this lang-lexer (open-input-string in)))
+       (let ((parser-res (lang-parser my-lexer)))
+         (initialize-store!)
+         (initialize-env! the-global-env #t)
+         (initialize-env! the-scope-env #t)
+         (value-of parser-res)
+         (printf ""))
        ]
       [else (println "File not found")]
-     )
+      )
    )
  )
 
 
 ;------------------------------------------------------
 ;print function
-(define (atom? x) (not (pair? x)))
+;(define (atom? x) (not (pair? x)))
 
-(define (print inp)
-  (cond
-    [(list? inp) (for-each (lambda (each_atom) (display each_atom) (display " ")) inp) (newline)]
-    [(atom? inp) (display inp)]
-   )
- )
+;(define (print inp)
+;  (cond
+;    [(list? inp) (for-each (lambda (each_atom) (display each_atom) (display " ")) inp) (newline)]
+;    [(atom? inp) (display inp)]
+;   )
+; )
 
 ;------------------------------------------------------
 ;store: Each location may have arbitrary type of value.
@@ -284,65 +286,6 @@
                        (cdr store1) (- ref1 1))))))))
             (setref-inner the-store ref)))))
 
-;---
-#| todo
-(define reference?
-  (lambda (v)
-    (integer? v)))
-
-(define-datatype store store?
-  (empty-store)
-  (extend-store
-   (ref reference?)
-   (val identifier?)
-   (st store?)))
-  
-
-(define init-store
-  (lambda ()
-    (empty-store)))
-
-(define newref
-  (lambda (val)
-    (let ((next-ref (length the-store)))
-      (set! the-store (append the-store (list val)))
-      next-ref)))
-
-(define deref 
-  (lambda (var) 
-    (let l (apply-env saved-env var))
-    (list-ref  the-store  l)))
-
-(define report-invalid-refrence
-  (lambda (ref)
-    (eopl:error ’setref! "Invalid refrence: ~s" ref)))
-
-(define setref!
-  (lambda (ref val)
-    (set! the-store
-          (letrec
-              ((setref-inner
-                (lambda (store1 ref1)
-                  (cond
-                    ((null? store1)
-                     (report-invalid-reference ref the-store))
-                    ((zero? ref1)
-                     (cons val (cdr store1)))
-                    (else
-                     (cons
-                      (car store1)
-                      (setref-inner
-                       (cdr store1) (- ref1 1))))))))
-            (setref-inner the-store ref)))))
-
-(define setref 
-  (lambda (var exp1)
-    (setref!
-     (apply-env saved-env var)
-     (value-of exp1 saved-env))
-    (num-val 25)))
-|#
-
 ;------------------------------------------------------
 ;environment: Accepts (string, expval) pairs.
 (define report-no-binding-found
@@ -385,6 +328,25 @@
     (set! env
           (extend-env "$global" (bool-val global) (empty-env)))))
 
+;doc: Used to add defined functions to environment to calling a function.
+(define extend-env-with-functions
+  (lambda (env)
+    (let loop ([env env]
+               [g-env the-global-env])
+      (cases environment g-env
+        (empty-env ()
+                   env)
+        (extend-env (var val saved-env)
+                    (cases expval val
+                      (ref-val (ref)
+                               (loop (env saved-env)))
+                      (proc-val (proc)
+                                (loop (extend-env var val env) saved-env))
+                      (else
+                       (report-type-error)))))
+      )))
+
+;doc: Checks whether we are in global scope now
 (define global-scope?
   (lambda (env)
     (expval->bool (apply-env "$global" env #t))))
@@ -394,48 +356,6 @@
 
 ;doc: Used for all known variables in a scope
 (define the-scope-env 'uninitialized)
-
-#|todo
-(define report-no-binding-found
-  (lambda (search-var)
-    (eopl:error ’apply-env "No binding for ~s" search-var)))
-(define report-invalid-env
-  (lambda (env)
-     (eopl:error ’apply-env "Bad environment: ~s" env)))
-  
-(define-datatype env? env
-  (empty-env)
-  (extend-env
-    (var identifier?)
-    (val expval?)
-    (env environment?))
-  (extend-env-rec
-     (p-name identifier?)
-     (b-vars list?)
-     (body expression?)
-     (env environment?)))
-
-(define apply-env
-  (lambda (env search-var)
-    (cases environment env
-      (empty-env ()
-         (report-no-binding-found search-var))
-      (extend-env (saved-var search-var)
-         (if (eqv? saved-var search-var)
-           saved-val
-           (apply-env saved-env search-env)))
-      (extend-env-rec (p-name b-vars p-body saved-env)
-         (if (eqv? search-var p-name)
-             (proc-val (procedure b-vars p-body env))
-             (apply-env saved-env search-var)))
-      (else
-          (report-invalid-env env))
-      )))
-
-(define init-env
-  (lambda ()
-    (empty-env)))
-|#
 
 ;------------------------------------------------------
 ;exp
@@ -486,8 +406,6 @@
    (compare-pairs exp?))
   (compare-op-sum-pairs-exp
    (compare-list list?))
-  ;(compare-op-sum-pair-exp
-  ; 33)
   (equal-sum-exp
    (sum exp?))
   (less-sum-exp
@@ -513,7 +431,7 @@
    (exp1 exp?)
    (exp2 exp?))
   (call-exp
-   (ID string?)
+   (proc exp?)
    (arguments exp?))
   (list-cell-exp
    (lst exp?)
@@ -523,9 +441,13 @@
   (var-exp
    (name string?))
   (list-exp
-   (expressions exp?))
-  (expressions-exp
-   (exps-list list?))
+   (expressions list?))
+  ;const exps
+  (num-exp
+   (num number?))
+  (bool-exp
+   (bool boolean?))
+  (none-exp)
   )
 
 ;exp extractors
@@ -534,12 +456,6 @@
     (cases exp exp1
       (statements-exp (lst) lst)
       (else (report-type-mismatch 'statements-exp exp1)))))
-
-(define exp->expressions
-  (lambda (exp1)
-    (cases exp exp1
-      (expressions-exp (lst) lst)
-      (else (report-type-mismatch 'expressions-exp exp1)))))
 
 (define exp->params
   (lambda (exp1)
@@ -602,11 +518,12 @@
       (print-stmt-exp (atom)
                       (let ([val (value-of atom)])
                         (cases expval val
-                          (num-val (num) 33)
-                          (bool-val (bool) 33)
+                          (num-val (num) (println num))
+                          (bool-val (bool) (println bool))
                           (none-val () 33)
                           (list-val (lst) 33)
-                          (else (report-type-error)))))
+                          (else (report-type-error)))
+                        (void-val)))
       (pass-exp ()
                 (void-val))
       (break-exp ()
@@ -619,15 +536,15 @@
                                 (lambda (e)
                                   (list (car e) (a-thunk (cadr e) the-scope-env)))
                                 (exp->params params))])
-                          (set! the-global-env (extend-env ID (proc-val ID thunk-params p-body) the-global-env))
+                          (set! the-global-env (extend-env ID (proc-val (a-proc ID thunk-params p-body)) the-global-env))
                           (void-val)))
       (if-stmt-exp (exp1 exp2 exp3)
                    (let ([cnd (expval->bool (value-of exp1))])
                      (if cnd
                          (value-of exp2)
                          (value-of exp3))))
-      (for-stmt-exp
-       33)
+      (for-stmt-exp (ID lst for-body)
+                    33)
       (params-exp (lst)
                   (report-must-not-reach-here))
       ;todo
@@ -644,19 +561,18 @@
       (not-exp (exp1)
                (let ([bool1 (expval->bool (value-of exp1))])
                  (bool-val (not bool1))))
-      (comparison-exp
-       (sum exp?)
-       (compare-pairs exp?))
-      (compare-op-sum-pairs-exp
-       (compare-list list?))
+      (comparison-exp (sum compare-pairs)
+                      33)
+      (compare-op-sum-pairs-exp (compare-list)
+                                33)
       (equal-sum-exp (sum)
                      33)
-      (less-sum-exp
-       33)
-      (greater-sum-exp
-       33)
+      (less-sum-exp (sum)
+                    33)
+      (greater-sum-exp (sum)
+                       33)
       (add-exp (exp1 exp2)
-               (let ([let val1 (value-of exp1)])
+               (let ([val1 (value-of exp1)])
                  (cases expval val1
                    (num-val (num1)
                             (let ([num2 (expval->num (value-of exp2))])
@@ -696,14 +612,47 @@
                  (let ([num1 (expval->num (value-of exp1))]
                        [num2 (expval->num (value-of exp2))])
                    (num-val (expt num1 num2))))
-      (call-exp
-       33)
+      (call-exp (exp1 arguments)
+                (let ([proc (expval->proc (value-of exp1))]
+                      [old-scope-env the-scope-env]
+                      [args (exp->arguments arguments)])
+                  ;init scope-env for functino call
+                  (initialize-env! the-scope-env #f)
+                  ;add already defined functions to scope-env
+                  (set! the-scope-env (extend-env-with-functions the-scope-env))
+                  ;add arguments to scope-env
+                  (cases procedure proc
+                    (a-proc (ID params p-body)
+                            (let loop ([args args]
+                                       [params params])
+                              (cond
+                                [(and (null? params) (null? args)) 88]
+                                [(null? params) (report-arguments-len-long)]
+                                [(null? args)
+                                 (let ([par-with-def (car params)])
+                                   (set! the-scope-env (extend-env (car par-with-def) (newref (cadr par-with-def)) the-scope-env))
+                                   (loop (args (cdr params))))]
+                                [(let ([par-with-def (car params)])
+                                   (set! the-scope-env (extend-env (car par-with-def) (newref (a-thunk (car args) the-scope-env)) the-scope-env))
+                                   (loop (cdr args) (cdr params)))])))
+                    (else
+                     (report-type-error)))
+                  ;run p-body and return value
+                  (cases procedure proc
+                    (a-proc (ID params p-body)
+                            (let ([ret-val (value-of p-body)])
+                              (set! the-scope-env old-scope-env)
+                              (cases expval ret-val
+                                (void-val () (none-val))
+                                (return-val (val) val)
+                                (else (report-type-error)))))
+                    (else (report-type-error)))))
       (list-cell-exp (lst index)
                      (let ([l (expval->list (value-of lst))]
-                           [num (expval-> num (value-of index))])
+                           [num (expval->num (value-of index))])
                        (list-ref l num)))
-      (arguments-exp
-       33)
+      (arguments-exp (lst)
+                     (report-must-not-reach-here))
       (var-exp (var-name)
                (let ([ref1 (apply-env var-name the-scope-env #t)])
                  (let ([w (deref ref1)])
@@ -712,10 +661,12 @@
                        (let ([val1 (value-of-thunk w)])
                          (setref! ref1 val1)
                          val1)))))
-      (list-exp (exps)
-                (let ([lst (exp->expressions exps)])
-                  (list-val
-                   (map (lambda (e) (value-of e)) lst))))
+      (list-exp (exps-list)
+                (list-val (map (lambda (e) (value-of e)) exps-list)))
+      ;const exps
+      (num-exp (num) (num-val num))
+      (bool-exp (bool) (bool-val bool))
+      (none-exp () (none-val))
       )))
 
 ;------------------------------------------------------
@@ -770,10 +721,17 @@
       (ref-val (ref) ref)
       (else (report-type-mismatch 'ref val)))))
 
+(define expval->proc
+  (lambda (val)
+    (cases expval val
+      (proc-val (proc) proc)
+      (else (report-type-mismatch 'proc val)))))
+
+
 ;type error report functions
 (define report-type-mismatch
   (lambda (expected val)
-    (printf "Type mismatched: Expected ~s but got ~s\n", expected val)))
+    (printf "Type mismatched: Expected ~s but got ~s\n" expected val)))
 
 (define report-type-error
   (lambda ()
@@ -781,21 +739,26 @@
 
 ;-------------------------------------------------------
 ;error report functions
-(define report-must-no-reach-here
+(define report-must-not-reach-here
   (lambda ()
     (println "Must not reach here.")))
+
+(define report-arguments-len-long
+  (lambda ()
+    (println "Arguments length is too long.")))
 
 ;-------------------------------------------------------
 ;proc
 (define-datatype procedure proc?
-  (proc
+  (a-proc
    (p-name string?)
    (params exp?)
    (p-body exp?)))
 
 ;-------------------------------------------------------
-;test
-(define test-file-name "any.txt")
+;test: Tests' forlder is "tests"
+(define test-dir "../tests/")
+(define test-file-name (string-append test-dir "simple-arithmetic_in.txt"))
 (evaluate test-file-name)
 
 
