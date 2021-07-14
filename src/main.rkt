@@ -132,7 +132,7 @@
      ((param-with-default) (params-exp (list $1)))
      ((params comma param-with-default) (params-exp (append (exp->params $1) (list $3)))))
     (param-with-default
-     ((ID assign expression) (param-with-default-exp $1 $3)))
+     ((ID assign expression) (list $1 $3)))
     (if-stmt
      ((if expression colon statements else-block) (if-stmt-exp $2 $4 $5)))
     (else-block
@@ -218,6 +218,7 @@
           (let ((parser-res (lang-parser my-lexer)))
             (initialize-store! the-store)
             (initialize-env! the-global-env #t)
+            (initialize-env! the-scope-env #t)
             (value-of parser-res))
        ]
       [else (println "File not found")]
@@ -468,9 +469,10 @@
    (statements exp?))
   (params-exp
    (exps-list list?))
-  (param-with-default-exp
-   (ID string?)
-   (default exp?))
+  ;todo
+  ;(param-with-default-exp
+  ; (ID string?)
+  ; (default exp?))
   (or-exp
    (exp1 exp?)
    (exp2 exp?))
@@ -560,7 +562,7 @@
 ;------------------------------------------------------
 ;value-of
 (define value-of
-  (lambda (exp1 env)
+  (lambda (exp1)
     (cases exp exp1
       (empty-exp () ;nothing -> used as epsilon in grammar
                  (void-val)) 
@@ -568,35 +570,37 @@
                       (let loop ([stmt-list lst])
                         (if (null? stmt-list)
                             (void-val)
-                            (let ([val1 (value-of (car stmt-list) env)])
+                            (let ([val1 (value-of (car stmt-list))])
                               (cases expval val1
                                 (void-val ()
                                           (loop (cdr stmt-list)))
                                 (else val1))))))
       (assignment-exp (ID rhs)
-                      (if (global-scope? env)
-                          (let ([res (apply-env ID env #f)]
-                                [th (a-thunk rhs env)])
+                      (if (global-scope? the-scope-env)
+                          (let ([res (apply-env ID the-scope-env #f)]
+                                [th (a-thunk rhs the-scope-env)])
                             (cases expval res
                               (void-val ()
                                         (let ([ref (newref th)])
                                           (set! the-global-env (extend-env ID (ref-val ref) the-global-env))
-                                          
+                                          (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
                                           (void-val)))
                               (ref-val (ref)
                                        (setref! ref th)
                                        (void-val))
                               (else (report-type-error))))
-                          (let ([ref (expval->ref (apply-env ID env #t))])
-                            (setref! ref (a-thunk rhs env))
+                          (let ([ref (expval->ref (apply-env ID the-scope-env #t))])
+                            (setref! ref (a-thunk rhs the-scope-env))
                             (void-val))))
       (return-stmt-exp (exp1)
-                       (return-val (value-of exp1 env)))
+                       (return-val (value-of exp1)))
       (global-stmt-exp (ID)
-                       33)
+                       (let ([ref (expval->ref (apply-env ID the-global-env))])
+                         (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
+                         (void-val)))
       ;todo: complete print
       (print-stmt-exp (atom)
-                      (let ([val (value-of atom env)])
+                      (let ([val (value-of atom)])
                         (cases expval val
                           (num-val (num) 33)
                           (bool-val (bool) 33)
@@ -612,26 +616,27 @@
       (function-def-exp
        33)
       (if-stmt-exp (exp1 exp2 exp3)
-                   (let ([cnd (expval->bool (value-of exp1 env))])
+                   (let ([cnd (expval->bool (value-of exp1))])
                      (if cnd
-                         (value-of exp2 env)
-                         (value-of exp3 env))))
+                         (value-of exp2)
+                         (value-of exp3))))
       (for-stmt-exp
        33)
       (params-exp
        33)
-      (param-with-default-exp
-       33)
+      ;todo
+      ;(param-with-default-exp
+      ; 33)
       (or-exp (exp1 exp2)
-              (let ([bool1 (expval->bool (value-of exp1 env))]
-                    [bool2 (expval->bool (value-of exp2 env))])
+              (let ([bool1 (expval->bool (value-of exp1))]
+                    [bool2 (expval->bool (value-of exp2))])
                 (bool-val (or bool1 bool2))))
       (and-exp (exp1 exp2)
-               (let ([bool1 (expval->bool (value-of exp1 env))]
-                     [bool2 (expval->bool (value-of exp2 env))])
+               (let ([bool1 (expval->bool (value-of exp1))]
+                     [bool2 (expval->bool (value-of exp2))])
                  (bool-val (and bool1 bool2))))
       (not-exp (exp1)
-               (let ([bool1 (expval->bool (value-of exp1 env))])
+               (let ([bool1 (expval->bool (value-of exp1))])
                  (bool-val (not bool1))))
       (comparison-exp
        (sum exp?)
@@ -645,62 +650,67 @@
       (greater-sum-exp
        33)
       (add-exp (exp1 exp2)
-               (let ([let val1 (value-of exp1 env)])
+               (let ([let val1 (value-of exp1)])
                  (cases expval val1
                    (num-val (num1)
-                            (let ([num2 (expval->num (value-of exp2 env))])
+                            (let ([num2 (expval->num (value-of exp2))])
                               (num-val (+ num1 num2))))
                    (bool-val (bool1)
-                             (let ([bool2 (expval->bool (value-of exp2 env))])
+                             (let ([bool2 (expval->bool (value-of exp2))])
                                (bool-val (or bool1 bool2))))
                    (else (report-type-error)))))
       (sub-exp (exp1 exp2)
-               (let ([num1 (expval->num (value-of exp1 env))]
-                     [num2 (expval->num (value-of exp2 env))])
+               (let ([num1 (expval->num (value-of exp1))]
+                     [num2 (expval->num (value-of exp2))])
                  (num-val (- num1 num2))))
       (mul-exp (exp1 exp2)
-               (let ([val1 (value-of exp1 env)])
+               (let ([val1 (value-of exp1)])
                  (cases expval val1
                    (num-val (num1)
                             (if (zero? num1)
                                 (num-val 0)
-                                (let ([num2 (expval->num (value-of exp2 env))])
+                                (let ([num2 (expval->num (value-of exp2))])
                                   (num-val (* num1 num2)))))
                    (bool-val (bool1)
                              (if (not bool1)
                                  (bool-val #f)
-                                 (let ([bool2 (expval->bool (value-of exp2 env))])
+                                 (let ([bool2 (expval->bool (value-of exp2))])
                                    (bool-val (and bool1 bool2)))))
                    (else (report-type-error)))))
       (div-exp (exp1 exp2)
-               (let ([num1 (expval->num (value-of exp1 env))]
-                     [num2 (expval->num (value-of exp2 env))])
+               (let ([num1 (expval->num (value-of exp1))]
+                     [num2 (expval->num (value-of exp2))])
                  (num-val (/ num1 num2))))
       (factor-exp (sign exp1)
-                  (let ([num1 (expval->num (value-of exp1 env))])
+                  (let ([num1 (expval->num (value-of exp1))])
                     (if (equal? sign "+")
                         (num-val num1)
                         (num-val (- 0 num1)))))
       (power-exp (exp1 exp2)
-                 (let ([num1 (expval->num (value-of exp1 env))]
-                       [num2 (expval->num (value-of exp2 env))])
+                 (let ([num1 (expval->num (value-of exp1))]
+                       [num2 (expval->num (value-of exp2))])
                    (num-val (expt num1 num2))))
       (call-exp
        33)
-      (list-cell-exp
-       33)
+      (list-cell-exp (lst index)
+                     (let ([l (expval->list (value-of lst))]
+                           [num (expval-> num (value-of index))])
+                       (list-ref l num)))
       (arguments-exp
        33)
       (var-exp (var-name)
-               (let ([ref1 (apply-env var-name env #t)])
+               (let ([ref1 (apply-env var-name the-scope-env #t)])
                  (let ([w (deref ref1)])
                    (if (expval? w)
                        w
                        (let ([val1 (value-of-thunk w)])
                          (setref! ref1 val1)
                          val1)))))
-      (list-exp
-       33))))
+      (list-exp (exps)
+                (let ([lst (exp->expressions exps)])
+                  (list-val
+                   (map (lambda (e) (value-of e)) lst))))
+      )))
 
 ;------------------------------------------------------
 ;thunk
