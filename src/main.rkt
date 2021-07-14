@@ -311,11 +311,11 @@
                      (report-no-binding-found search-var)
                      (void-val)))
       (extend-env (saved-var saved-val saved-env)
-         (if (equal? saved-var search-var)
-           saved-val
-           (apply-env search-var saved-env with-error)))
+                  (if (equal? saved-var search-var)
+                      saved-val
+                      (apply-env search-var saved-env with-error)))
       (else
-          (report-invalid-env env))
+       (report-invalid-env env))
       )))
 
 ;doc: Used to initialize the-global-env
@@ -334,9 +334,17 @@
         (extend-env (var val saved-env)
                     (cases expval val
                       (ref-val (ref)
-                               (loop (env saved-env)))
-                      (proc-val (proc)
-                                (loop (extend-env var val env) saved-env))
+                               (let ([w (deref ref)])
+                                 (if (expval? w)
+                                     (cases expval w
+                                       (proc-val (proc)
+                                                 (cases procedure proc
+                                                   (a-proc (ID params p-body)
+                                                           (loop (extend-env ID val env) saved-env))))
+                                       (else
+                                        (loop env saved-env)))
+                                     (loop env saved-env))))
+                      (bool-val (bool) (loop env saved-env)) ;For $global in env with holds a bool-val
                       (else
                        (report-type-error)))))
       )))
@@ -483,9 +491,10 @@
                             (void-val)
                             (let ([val1 (value-of (car stmt-list))])
                               (cases expval val1
-                                (void-val ()
-                                          (loop (cdr stmt-list)))
-                                (else val1))))))
+                                (break-val () val1)
+                                (continue-val () val1)
+                                (return-val (ret-val) val1)
+                                (else (loop (cdr stmt-list))))))))
       (assignment-exp (ID rhs)
                       (if (global-scope? the-scope-env)
                           (let ([res (apply-env ID the-scope-env #f)]
@@ -531,8 +540,10 @@
                                 (lambda (e)
                                   (list (car e) (a-thunk (cadr e) the-scope-env)))
                                 (exp->params params))])
-                          (set! the-global-env (extend-env ID (proc-val (a-proc ID thunk-params p-body)) the-global-env))
-                          (void-val)))
+                          (let ([val (ref-val (newref (proc-val (a-proc ID thunk-params p-body))))])
+                            (set! the-global-env (extend-env ID val the-global-env))
+                            (set! the-scope-env (extend-env ID val the-scope-env))
+                            (void-val))))
       (if-stmt-exp (exp1 exp2 exp3)
                    (let ([cnd (expval->bool (value-of exp1))])
                      (if cnd
@@ -628,7 +639,10 @@
                                    (set! the-scope-env (extend-env (car par-with-def) (newref (cadr par-with-def)) the-scope-env))
                                    (loop (args (cdr params))))]
                                 [(let ([par-with-def (car params)])
-                                   (set! the-scope-env (extend-env (car par-with-def) (newref (a-thunk (car args) the-scope-env)) the-scope-env))
+                                   (set! the-scope-env (extend-env
+                                                        (car par-with-def)
+                                                        (ref-val (newref (a-thunk (car args) old-scope-env)))
+                                                        the-scope-env))
                                    (loop (cdr args) (cdr params)))])))
                     (else
                      (report-type-error)))
@@ -757,7 +771,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "0-lhs-multiply_in.txt"))
+(define test-file-name (string-append test-dir "sum-function_in.txt"))
 (evaluate test-file-name)
 
 

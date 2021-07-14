@@ -2,7 +2,7 @@ def sum(a = 2, b = 3):
   return a + b;
   ;
 
-a = 2;
-b = 3;
+a = 10;
+b = 20;
 c = sum(a, b);
 print(c);
