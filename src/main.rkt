@@ -217,10 +217,10 @@
           (define my-lexer (lex-this lang-lexer (open-input-string in)))
           (let ((parser-res (lang-parser my-lexer)))
             (initialize-store! the-store)
-            (initialize-env! the-global-env)
+            (initialize-env! the-global-env #t)
             (value-of parser-res))
        ]
-      [else "File not found"]
+      [else (println "File not found")]
      )
    )
  )
@@ -360,14 +360,16 @@
     (saved-env env?)))
 
 (define apply-env
-  (lambda (search-var env)
+  (lambda (search-var env with-error)
     (cases environment env
       (empty-env ()
-         (report-no-binding-found search-var))
+                 (if with-error
+                     (report-no-binding-found search-var)
+                     (void-val)))
       (extend-env (saved-var saved-val saved-env)
          (if (eqv? saved-var search-var)
            saved-val
-           (apply-env search-var saved-env)))
+           (apply-env search-var saved-env with-error)))
       (else
           (report-invalid-env env))
       )))
@@ -378,11 +380,19 @@
 
 ;doc: Used to initialize the-global-env
 (define initialize-env!
+  (lambda (env global)
+    (set! env
+          (extend-env "$global" (bool-val global) (empty-env)))))
+
+(define global-scope?
   (lambda (env)
-    (set! env (empty-env))))
+    (expval->bool (apply-env "$global" env #t))))
 
 ;doc: Used for global variables and functions
 (define the-global-env 'uninitialized)
+
+;doc: Used for all known variables in a scope
+(define the-scope-env 'uninitialized)
 
 #|todo
 (define report-no-binding-found
@@ -521,31 +531,31 @@
   (lambda (exp1)
     (cases exp exp1
       (statements-exp (lst) lst)
-      (else report-type-mismatch 'statements-exp exp1))))
+      (else (report-type-mismatch 'statements-exp exp1)))))
 
 (define exp->expressions
   (lambda (exp1)
     (cases exp exp1
       (expressions-exp (lst) lst)
-      (else report-type-mismatch 'expressions-exp exp1))))
+      (else (report-type-mismatch 'expressions-exp exp1)))))
 
 (define exp->params
   (lambda (exp1)
     (cases exp exp1
       (params-exp (lst) lst)
-      (else report-type-mismatch 'params-exp exp1))))
+      (else (report-type-mismatch 'params-exp exp1)))))
 
 (define exp->arguments
   (lambda (exp1)
     (cases exp exp1
       (arguments-exp (lst) lst)
-      (else report-type-mismatch 'arguments-exp exp1))))
+      (else (report-type-mismatch 'arguments-exp exp1)))))
 
 (define exp->compare-op-sum-pairs
   (lambda (exp1)
     (cases exp exp1
       (compare-op-sum-pairs-exp (lst) lst)
-      (else report-type-mismatch 'compare-op-sum-pairs-exp exp1))))
+      (else (report-type-mismatch 'compare-op-sum-pairs-exp exp1)))))
 
 ;------------------------------------------------------
 ;value-of
@@ -564,13 +574,35 @@
                                           (loop (cdr stmt-list)))
                                 (else val1))))))
       (assignment-exp (ID rhs)
-                      33)
+                      (if (global-scope? env)
+                          (let ([res (apply-env ID env #f)]
+                                [th (a-thunk rhs env)])
+                            (cases expval res
+                              (void-val ()
+                                        (let ([ref (newref th)])
+                                          (set! the-global-env (extend-env ID (ref-val ref) the-global-env))
+                                          
+                                          (void-val)))
+                              (ref-val (ref)
+                                       (setref! ref th)
+                                       (void-val))
+                              (else (report-type-error))))
+                          (let ([ref (expval->ref (apply-env ID env #t))])
+                            (setref! ref (a-thunk rhs env))
+                            (void-val))))
       (return-stmt-exp (exp1)
                        (return-val (value-of exp1 env)))
       (global-stmt-exp (ID)
                        33)
+      ;todo: complete print
       (print-stmt-exp (atom)
-                      33)
+                      (let ([val (value-of atom env)])
+                        (cases expval val
+                          (num-val (num) 33)
+                          (bool-val (bool) 33)
+                          (none-val () 33)
+                          (list-val (lst) 33)
+                          (else (report-type-error)))))
       (pass-exp ()
                 (void-val))
       (break-exp ()
@@ -621,7 +653,7 @@
                    (bool-val (bool1)
                              (let ([bool2 (expval->bool (value-of exp2 env))])
                                (bool-val (or bool1 bool2))))
-                   (else report-type-error))))
+                   (else (report-type-error)))))
       (sub-exp (exp1 exp2)
                (let ([num1 (expval->num (value-of exp1 env))]
                      [num2 (expval->num (value-of exp2 env))])
@@ -639,7 +671,7 @@
                                  (bool-val #f)
                                  (let ([bool2 (expval->bool (value-of exp2 env))])
                                    (bool-val (and bool1 bool2)))))
-                   (else report-type-error))))
+                   (else (report-type-error)))))
       (div-exp (exp1 exp2)
                (let ([num1 (expval->num (value-of exp1 env))]
                      [num2 (expval->num (value-of exp2 env))])
@@ -660,7 +692,7 @@
       (arguments-exp
        33)
       (var-exp (var-name)
-               (let ([ref1 (apply-env var-name env)])
+               (let ([ref1 (apply-env var-name env #t)])
                  (let ([w (deref ref1)])
                    (if (expval? w)
                        w
@@ -702,25 +734,25 @@
   (lambda (val)
     (cases expval val
       (num-val (num) num)
-      (else report-type-mismatch 'num val))))
+      (else (report-type-mismatch 'num val)))))
 
 (define expval->bool
   (lambda (val)
     (cases expval val
       (bool-val (bool) bool)
-      (else report-type-mismatch 'bool val))))
+      (else (report-type-mismatch 'bool val)))))
 
 (define expval->list
   (lambda (val)
     (cases expval val
       (list-val (lst) lst)
-      (else report-type-mismatch 'list val))))
+      (else (report-type-mismatch 'list val)))))
 
 (define expval->ref
   (lambda (val)
     (cases expval val
       (ref-val (ref) ref)
-      (else report-type-mismatch 'ref val))))
+      (else (report-type-mismatch 'ref val)))))
 
 ;type error report functions
 (define report-type-mismatch
