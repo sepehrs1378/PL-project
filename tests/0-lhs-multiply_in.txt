@@ -1,10 +1,17 @@
 def f():
-  global a
-  a = a + 1;
+  print(777);
   return 5;
   ;
 
+def g():
+  print(777);
+  return True;
+  ;
+
+
 a = 2;
-c = 0;
-d = c * f();
+b = 0;
+c = False;
+d = b * f();
+e = c * g();
 print(a);

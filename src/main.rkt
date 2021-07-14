@@ -127,7 +127,7 @@
      ((print paranth-open atom paranth-close) (print-stmt-exp $3)))
     (function-def
      ((def ID paranth-open params paranth-close colon statements) (function-def-exp $2 $4 $7))
-     ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp (list empty-exp)) $6)))
+     ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp null) $6))) ;todo: null or (list empty-exp)?
     (params
      ((param-with-default) (params-exp (list $1)))
      ((params comma param-with-default) (params-exp (append (exp->params $1) (list $3)))))
@@ -751,13 +751,13 @@
 (define-datatype procedure proc?
   (a-proc
    (p-name string?)
-   (params exp?)
+   (params list?)
    (p-body exp?)))
 
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "simple-arithmetic_in.txt"))
+(define test-file-name (string-append test-dir "0-lhs-multiply_in.txt"))
 (evaluate test-file-name)
 
 
