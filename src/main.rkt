@@ -613,8 +613,14 @@
                  (break-val))
       (continue-exp ()
                     (continue-val))
-      (function-def-exp
-       33)
+      (function-def-exp (ID params p-body)
+                        (let ([thunk-params
+                               (map
+                                (lambda (e)
+                                  (list (car e) (a-thunk (cadr e) the-scope-env)))
+                                (exp->params params))])
+                          (set! the-global-env (extend-env ID (proc-val ID thunk-params p-body) the-global-env))
+                          (void-val)))
       (if-stmt-exp (exp1 exp2 exp3)
                    (let ([cnd (expval->bool (value-of exp1))])
                      (if cnd
@@ -622,8 +628,8 @@
                          (value-of exp3))))
       (for-stmt-exp
        33)
-      (params-exp
-       33)
+      (params-exp (lst)
+                  (report-must-not-reach-here))
       ;todo
       ;(param-with-default-exp
       ; 33)
@@ -643,8 +649,8 @@
        (compare-pairs exp?))
       (compare-op-sum-pairs-exp
        (compare-list list?))
-      (equal-sum-exp
-       33)
+      (equal-sum-exp (sum)
+                     33)
       (less-sum-exp
        33)
       (greater-sum-exp
@@ -773,14 +779,18 @@
   (lambda ()
     (printf "Type error\n")))
 
+;-------------------------------------------------------
+;error report functions
+(define report-must-no-reach-here
+  (lambda ()
+    (println "Must not reach here.")))
 
 ;-------------------------------------------------------
 ;proc
 (define-datatype procedure proc?
   (proc
    (p-name string?)
-   (formal-params list?)
-   (default-exps list?)
+   (params exp?)
    (p-body exp?)))
 
 ;-------------------------------------------------------
