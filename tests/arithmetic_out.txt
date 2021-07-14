@@ -1,0 +1,10 @@
+5
+-1
+9.99
+3.3333 (fractional)
+8
+False
+True
+False
+False
+True

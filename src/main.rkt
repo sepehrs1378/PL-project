@@ -403,15 +403,6 @@
   (comparison-exp
    (sum exp?)
    (compare-pairs list?))
-  ;(compare-op-sum-pairs-exp
-  ; (compare-list list?))
-  ;todo
-  ;(equal-sum-exp
-  ; (sum exp?))
-  ;(less-sum-exp
-  ; (sum exp?))
-  ;(greater-sum-exp
-  ; (sum exp?))
   (add-exp
    (exp1 exp?)
    (exp2 exp?))
@@ -468,13 +459,6 @@
     (cases exp exp1
       (arguments-exp (lst) lst)
       (else (report-type-mismatch 'arguments-exp exp1)))))
-
-;todo
-;(define exp->compare-op-sum-pairs
-;  (lambda (exp1)
-;    (cases exp exp1
-;      (compare-op-sum-pairs-exp (lst) lst)
-;      (else (report-type-mismatch 'compare-op-sum-pairs-exp exp1)))))
 
 ;------------------------------------------------------
 ;value-of
@@ -597,15 +581,6 @@
                                      (value-of (comparison-exp (num-exp num2) (cdr compare-pairs)))
                                      (bool-val #f)))])
                             )))
-      ;(compare-op-sum-pairs-exp (compare-list)
-      ;                          33)
-      ;todo
-      ;(equal-sum-exp (sum)
-      ;               33)
-      ;(less-sum-exp (sum)
-      ;              33)
-      ;(greater-sum-exp (sum)
-      ;                 33)
       (add-exp (exp1 exp2)
                (let ([val1 (value-of exp1)])
                  (cases expval val1
@@ -827,7 +802,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "fib-function_in.txt"))
+(define test-file-name (string-append test-dir "arithmetic_in.txt"))
 (evaluate test-file-name)
 
 
