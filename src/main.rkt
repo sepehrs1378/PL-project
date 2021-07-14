@@ -492,30 +492,7 @@
                                 (return-val (ret-val) val1)
                                 (else (loop (cdr stmt-list))))))))
       (assignment-exp (ID rhs)
-                      (if (global-scope? the-scope-env)
-                          (let ([res (apply-env ID the-scope-env #f)]
-                                [th (a-thunk rhs the-scope-env)])
-                            (cases expval res
-                              (void-val ()
-                                        (let ([ref (newref th)])
-                                          (set! the-global-env (extend-env ID (ref-val ref) the-global-env))
-                                          (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
-                                          (void-val)))
-                              (ref-val (ref)
-                                       (setref! ref th)
-                                       (void-val))
-                              (else (report-type-error))))
-                          (let ([res (apply-env ID the-scope-env #f)]
-                                [th (a-thunk rhs the-scope-env)])
-                            (cases expval res
-                              (void-val ()
-                                        (let ([ref (newref th)])
-                                          (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
-                                          (void-val)))
-                              (ref-val (ref)
-                                       (setref! ref th)
-                                       (void-val))
-                              (else (report-type-error))))))
+                      (assign ID rhs))
       (return-stmt-exp (exp1)
                        (return-val (value-of exp1)))
       (global-stmt-exp (ID)
@@ -553,8 +530,25 @@
                      (if cnd
                          (value-of exp2)
                          (value-of exp3))))
-      (for-stmt-exp (ID lst for-body)
-                    33)
+      (for-stmt-exp (ID lst statements)
+                    (let ([lst (expval->list (value-of lst))])
+                      (assign ID (none-exp))
+                      (let ([iter-ref (expval->ref (apply-env ID the-scope-env #t))])
+                        (let loop ([val-iter-list lst])
+                          (if (null? val-iter-list)
+                              (void-val)
+                              (begin
+                                (setref! iter-ref (car val-iter-list))
+                                (let ([val (value-of statements)])
+                                  (cases expval val
+                                    (return-val (ret-val)
+                                                val)
+                                    (break-val ()
+                                               (void-val))
+                                    (continue-val ()
+                                                  (loop (cdr val-iter-list)))
+                                    (else
+                                     (loop (cdr val-iter-list)))))))))))
       (params-exp (lst)
                   (report-must-not-reach-here))
       (or-exp (exp1 exp2)
@@ -682,6 +676,33 @@
       (none-exp () (none-val))
       )))
 
+(define assign
+  (lambda (ID rhs)
+    (if (global-scope? the-scope-env)
+        (let ([res (apply-env ID the-scope-env #f)]
+              [th (a-thunk rhs the-scope-env)])
+          (cases expval res
+            (void-val ()
+                      (let ([ref (newref th)])
+                        (set! the-global-env (extend-env ID (ref-val ref) the-global-env))
+                        (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
+                        (void-val)))
+            (ref-val (ref)
+                     (setref! ref th)
+                     (void-val))
+            (else (report-type-error))))
+        (let ([res (apply-env ID the-scope-env #f)]
+              [th (a-thunk rhs the-scope-env)])
+          (cases expval res
+            (void-val ()
+                      (let ([ref (newref th)])
+                        (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
+                        (void-val)))
+            (ref-val (ref)
+                     (setref! ref th)
+                     (void-val))
+            (else (report-type-error)))))))
+
 ;------------------------------------------------------
 ;thunk
 (define-datatype thunk thunk?
@@ -775,7 +796,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "global_in.txt"))
+(define test-file-name (string-append test-dir "for-simple_in.txt"))
 (evaluate test-file-name)
 
 
