@@ -127,7 +127,7 @@
      ((print paranth-open atom paranth-close) (print-stmt-exp $3)))
     (function-def
      ((def ID paranth-open params paranth-close colon statements) (function-def-exp $2 $4 $7))
-     ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp null) $6))) ;todo: null or (list empty-exp)?
+     ((def ID paranth-open paranth-close colon statements) (function-def-exp $2 (params-exp null) $6)))
     (params
      ((param-with-default) (params-exp (list $1)))
      ((params comma param-with-default) (params-exp (append (exp->params $1) (list $3)))))
@@ -154,18 +154,18 @@
      ((sum compare-op-sum-pairs) (comparison-exp $1 $2))
      ((sum) $1))
     (compare-op-sum-pairs
-     ((compare-op-sum-pair) (compare-op-sum-pairs-exp (list $1)))
-     ((compare-op-sum-pairs compare-op-sum-pair) (compare-op-sum-pairs-exp (append (exp->compare-op-sum-pairs $1) (list $2)))))
+     ((compare-op-sum-pair) (list $1))
+     ((compare-op-sum-pairs compare-op-sum-pair) (append $1 (list $2))))
     (compare-op-sum-pair
      ((eq-sum) $1)
      ((lt-sum) $1)
      ((gt-sum) $1))
     (eq-sum
-     ((equal sum) (equal-sum-exp $2)))
+     ((equal sum) (list "==" $2)))
     (lt-sum
-     ((less sum) (less-sum-exp $2)))
+     ((less sum) (list "<" $2)))
     (gt-sum
-     ((greater sum) (greater-sum-exp $2)))
+     ((greater sum) (list ">" $2)))
     (sum
      ((sum plus term) (add-exp $1 $3))
      ((sum minus term) (sub-exp $1 $3))
@@ -184,7 +184,7 @@
     (primary
      ((atom) $1)
      ((primary brack-open expression brack-close) (list-cell-exp $1 $3))
-     ((primary paranth-open paranth-close) (call-exp $1 (arguments-exp null))) ;todo: null or (list empty-exp)?
+     ((primary paranth-open paranth-close) (call-exp $1 (arguments-exp null)))
      ((primary paranth-open arguments paranth-close) (call-exp $1 $3)))
     (arguments
      ((expression) (arguments-exp (list $1)))
@@ -198,7 +198,7 @@
      ((list) $1))
     (list
      ((brack-open expressions brack-close) (list-exp $2))
-     ((brack-open brack-close) (list-exp null))) ;todo: (list empty-exp) or null?
+     ((brack-open brack-close) (list-exp null)))
     (expressions
      ((expressions comma expression) (append $1 (list $3)))
      ((expression) (list $1)))
@@ -402,15 +402,16 @@
    (exp1 exp?))
   (comparison-exp
    (sum exp?)
-   (compare-pairs exp?))
-  (compare-op-sum-pairs-exp
-   (compare-list list?))
-  (equal-sum-exp
-   (sum exp?))
-  (less-sum-exp
-   (sum exp?))
-  (greater-sum-exp
-   (sum exp?))
+   (compare-pairs list?))
+  ;(compare-op-sum-pairs-exp
+  ; (compare-list list?))
+  ;todo
+  ;(equal-sum-exp
+  ; (sum exp?))
+  ;(less-sum-exp
+  ; (sum exp?))
+  ;(greater-sum-exp
+  ; (sum exp?))
   (add-exp
    (exp1 exp?)
    (exp2 exp?))
@@ -468,11 +469,12 @@
       (arguments-exp (lst) lst)
       (else (report-type-mismatch 'arguments-exp exp1)))))
 
-(define exp->compare-op-sum-pairs
-  (lambda (exp1)
-    (cases exp exp1
-      (compare-op-sum-pairs-exp (lst) lst)
-      (else (report-type-mismatch 'compare-op-sum-pairs-exp exp1)))))
+;todo
+;(define exp->compare-op-sum-pairs
+;  (lambda (exp1)
+;    (cases exp exp1
+;      (compare-op-sum-pairs-exp (lst) lst)
+;      (else (report-type-mismatch 'compare-op-sum-pairs-exp exp1)))))
 
 ;------------------------------------------------------
 ;value-of
@@ -563,15 +565,47 @@
                (let ([bool1 (expval->bool (value-of exp1))])
                  (bool-val (not bool1))))
       (comparison-exp (sum compare-pairs)
-                      33)
-      (compare-op-sum-pairs-exp (compare-list)
-                                33)
-      (equal-sum-exp (sum)
-                     33)
-      (less-sum-exp (sum)
-                    33)
-      (greater-sum-exp (sum)
-                       33)
+                      (if (null? compare-pairs)
+                          (bool-val #t)
+                          (let ([left-val (value-of sum)]
+                                [op (caar compare-pairs)]
+                                [right-val (value-of (cadar compare-pairs))])
+                            (cond
+                              [(equal? op "==")
+                               (cases expval left-val
+                                 (num-val (num1)
+                                          (let ([num2 (expval->num right-val)])
+                                            (if (equal? num1 num2)
+                                                (value-of (comparison-exp (num-exp num2) (cdr compare-pairs)))
+                                                (bool-val #f))))
+                                 (bool-val (bool1)
+                                           (let ([bool2 (expval->bool right-val)])
+                                             (if (equal? bool1 bool2)
+                                                 (value-of (comparison-exp (bool-exp bool2) (cdr comparison-exp)))
+                                                 (bool-val #f))))
+                                 (else (report-type-error)))]
+                              [(equal? op "<")
+                               (let ([num1 (expval->num left-val)]
+                                     [num2 (expval->num right-val)])
+                                 (if (< num1 num2)
+                                     (value-of (comparison-exp (num-exp num2) (cdr compare-pairs)))
+                                     (bool-val #f)))]
+                              [(equal? op ">")
+                               (let ([num1 (expval->num left-val)]
+                                     [num2 (expval->num right-val)])
+                                 (if (> num1 num2)
+                                     (value-of (comparison-exp (num-exp num2) (cdr compare-pairs)))
+                                     (bool-val #f)))])
+                            )))
+      ;(compare-op-sum-pairs-exp (compare-list)
+      ;                          33)
+      ;todo
+      ;(equal-sum-exp (sum)
+      ;               33)
+      ;(less-sum-exp (sum)
+      ;              33)
+      ;(greater-sum-exp (sum)
+      ;                 33)
       (add-exp (exp1 exp2)
                (let ([val1 (value-of exp1)])
                  (cases expval val1
@@ -658,9 +692,6 @@
       (arguments-exp (lst)
                      (report-must-not-reach-here))
       (var-exp (var-name)
-               ;(println var-name)
-               ;(println the-scope-env)
-               ;(println the-global-env)
                (let ([ref (expval->ref (apply-env var-name the-scope-env #t))])
                  (let ([w (deref ref)])
                    (if (expval? w)
@@ -796,7 +827,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "for-simple_in.txt"))
+(define test-file-name (string-append test-dir "comparison_in.txt"))
 (evaluate test-file-name)
 
 
