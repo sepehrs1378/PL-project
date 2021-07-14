@@ -1,5 +1,7 @@
 def f(n = 10):
   print(n);
+  return 88;
   ;
 
-f();
+a = f();
+print(a);

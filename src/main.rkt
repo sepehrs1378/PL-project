@@ -392,10 +392,6 @@
    (statements exp?))
   (params-exp
    (exps-list list?))
-  ;todo
-  ;(param-with-default-exp
-  ; (ID string?)
-  ; (default exp?))
   (or-exp
    (exp1 exp?)
    (exp2 exp?))
@@ -553,9 +549,6 @@
                     33)
       (params-exp (lst)
                   (report-must-not-reach-here))
-      ;todo
-      ;(param-with-default-exp
-      ; 33)
       (or-exp (exp1 exp2)
               (let ([bool1 (expval->bool (value-of exp1))]
                     [bool2 (expval->bool (value-of exp2))])
@@ -636,8 +629,8 @@
                                 [(null? params) (report-arguments-len-long)]
                                 [(null? args)
                                  (let ([par-with-def (car params)])
-                                   (set! the-scope-env (extend-env (car par-with-def) (newref (cadr par-with-def)) the-scope-env))
-                                   (loop (args (cdr params))))]
+                                   (set! the-scope-env (extend-env (car par-with-def) (ref-val (newref (cadr par-with-def))) the-scope-env))
+                                   (loop args (cdr params)))]
                                 [(let ([par-with-def (car params)])
                                    (set! the-scope-env (extend-env
                                                         (car par-with-def)
@@ -771,7 +764,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "sum-function_in.txt"))
+(define test-file-name (string-append test-dir "default-param_in.txt"))
 (evaluate test-file-name)
 
 
