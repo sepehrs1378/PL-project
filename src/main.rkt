@@ -218,8 +218,8 @@
        (define my-lexer (lex-this lang-lexer (open-input-string in)))
        (let ((parser-res (lang-parser my-lexer)))
          (initialize-store!)
-         (initialize-env! the-global-env #t)
-         (initialize-env! the-scope-env #t)
+         (set! the-global-env (init-env #t))
+         (set! the-scope-env (init-env #t))
          (value-of parser-res)
          (printf ""))
        ]
@@ -311,22 +311,17 @@
                      (report-no-binding-found search-var)
                      (void-val)))
       (extend-env (saved-var saved-val saved-env)
-         (if (eqv? saved-var search-var)
+         (if (equal? saved-var search-var)
            saved-val
            (apply-env search-var saved-env with-error)))
       (else
           (report-invalid-env env))
       )))
 
-(define init-env
-  (lambda ()
-    (empty-env)))
-
 ;doc: Used to initialize the-global-env
-(define initialize-env!
-  (lambda (env global)
-    (set! env
-          (extend-env "$global" (bool-val global) (empty-env)))))
+(define init-env
+  (lambda (global)
+          (extend-env "$global" (bool-val global) (empty-env))))
 
 ;doc: Used to add defined functions to environment to calling a function.
 (define extend-env-with-functions
@@ -617,7 +612,7 @@
                       [old-scope-env the-scope-env]
                       [args (exp->arguments arguments)])
                   ;init scope-env for functino call
-                  (initialize-env! the-scope-env #f)
+                  (set! the-scope-env (init-env #f))
                   ;add already defined functions to scope-env
                   (set! the-scope-env (extend-env-with-functions the-scope-env))
                   ;add arguments to scope-env
@@ -654,12 +649,12 @@
       (arguments-exp (lst)
                      (report-must-not-reach-here))
       (var-exp (var-name)
-               (let ([ref1 (apply-env var-name the-scope-env #t)])
-                 (let ([w (deref ref1)])
+               (let ([ref (expval->ref (apply-env var-name the-scope-env #t))])
+                 (let ([w (deref ref)])
                    (if (expval? w)
                        w
                        (let ([val1 (value-of-thunk w)])
-                         (setref! ref1 val1)
+                         (setref! ref val1)
                          val1)))))
       (list-exp (exps-list)
                 (list-val (map (lambda (e) (value-of e)) exps-list)))
@@ -680,7 +675,11 @@
   (lambda (th)
     (cases thunk th
       (a-thunk (exp saved-env)
-               (value-of exp saved-env)))))
+               (let ([old-scope-env the-scope-env])
+                 (set! the-scope-env saved-env)
+                 (let ([val (value-of exp)])
+                   (set! the-scope-env old-scope-env)
+                   val))))))
 
 ;------------------------------------------------------
 ;expval
