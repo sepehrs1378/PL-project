@@ -505,13 +505,21 @@
                                        (setref! ref th)
                                        (void-val))
                               (else (report-type-error))))
-                          (let ([ref (expval->ref (apply-env ID the-scope-env #t))])
-                            (setref! ref (a-thunk rhs the-scope-env))
-                            (void-val))))
+                          (let ([res (apply-env ID the-scope-env #f)]
+                                [th (a-thunk rhs the-scope-env)])
+                            (cases expval res
+                              (void-val ()
+                                        (let ([ref (newref th)])
+                                          (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
+                                          (void-val)))
+                              (ref-val (ref)
+                                       (setref! ref th)
+                                       (void-val))
+                              (else (report-type-error))))))
       (return-stmt-exp (exp1)
                        (return-val (value-of exp1)))
       (global-stmt-exp (ID)
-                       (let ([ref (expval->ref (apply-env ID the-global-env))])
+                       (let ([ref (expval->ref (apply-env ID the-global-env #t))])
                          (set! the-scope-env (extend-env ID (ref-val ref) the-scope-env))
                          (void-val)))
       ;todo: complete print
@@ -656,6 +664,9 @@
       (arguments-exp (lst)
                      (report-must-not-reach-here))
       (var-exp (var-name)
+               ;(println var-name)
+               ;(println the-scope-env)
+               ;(println the-global-env)
                (let ([ref (expval->ref (apply-env var-name the-scope-env #t))])
                  (let ([w (deref ref)])
                    (if (expval? w)
@@ -764,7 +775,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "default-param_in.txt"))
+(define test-file-name (string-append test-dir "global_in.txt"))
 (evaluate test-file-name)
 
 
