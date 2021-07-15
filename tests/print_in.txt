@@ -1,0 +1,10 @@
+lst = [1, 2, 3, 4, 5, 6, 7, True, True, False];
+print(lst);
+a = 11/3;
+print(a);
+b = 11.0;
+print(b);
+c = True;
+print(c);
+d = False;
+print(d);
