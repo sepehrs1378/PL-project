@@ -119,7 +119,7 @@
     (assignment
      ((ID assign expression) (assignment-exp $1 $3)))
     (return-stmt
-     ((return) (return-stmt-exp none-exp))
+     ((return) (return-stmt-exp (none-exp)))
      ((return expression) (return-stmt-exp $2)))
     (global-stmt
      ((global ID) (global-stmt-exp $2)))
@@ -221,9 +221,9 @@
          (set! the-global-env (init-env #t))
          (set! the-scope-env (init-env #t))
          (value-of parser-res)
-         (printf ""))
+         (displayln ""))
        ]
-      [else (println "File not found")]
+      [else (displayln "File not found")]
       )
    )
  )
@@ -893,9 +893,30 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "global_in.txt"))
-(evaluate test-file-name)
-
+(define tests-list '(
+                     "arithmetic_in.txt"
+                     "call-by-need_in.txt"
+                     "comparison_in.txt"
+                     "default-param_in.txt"
+                     "fib-function_in.txt"
+                     "for-break_in_in.txt"
+                     "for-continue_in.txt"
+                     "for-simple_in.txt"
+                     "global_in.txt"
+                     "lhs-lazy-eval_in.txt"
+                     "list_in.txt"
+                     "list-max-func_in.txt"
+                     "list-rec-function_in.txt"
+                     "print_in.txt"
+                     "sum-function_in.txt"
+                     ))
+(let loop ([tests-list tests-list])
+  (if (null? tests-list)
+      (void)
+      (begin
+        (evaluate (string-append test-dir (car tests-list)))
+        (loop (cdr tests-list)))))
+  
 
 
 
