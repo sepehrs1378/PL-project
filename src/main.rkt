@@ -802,7 +802,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "list_in.txt"))
+(define test-file-name (string-append test-dir "arithmetic_in.txt"))
 (evaluate test-file-name)
 
 
