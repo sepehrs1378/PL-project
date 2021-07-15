@@ -119,7 +119,7 @@
     (assignment
      ((ID assign expression) (assignment-exp $1 $3)))
     (return-stmt
-     ((return) (return-stmt-exp empty-exp))
+     ((return) (return-stmt-exp none-exp))
      ((return expression) (return-stmt-exp $2)))
     (global-stmt
      ((global ID) (global-stmt-exp $2)))
@@ -351,7 +351,6 @@
 ;------------------------------------------------------
 ;exp
 (define-datatype exp exp?
-  (empty-exp) ;nothing -> used as epsilon in grammar
   (statements-exp
    (statements-list list?))
   (assignment-exp
@@ -427,6 +426,11 @@
   (bool-exp
    (bool boolean?))
   (none-exp)
+  (list-const-exp
+   (values list?))
+  ;thunk exp
+  (thunk-exp
+   (th thunk?))
   )
 
 ;exp extractors
@@ -452,9 +456,7 @@
 ;value-of
 (define value-of
   (lambda (exp1)
-    (cases exp exp1
-      (empty-exp () ;nothing -> used as epsilon in grammar
-                 (void-val)) 
+    (cases exp exp1 
       (statements-exp (lst)
                       (let loop ([stmt-list lst])
                         (if (null? stmt-list)
@@ -663,6 +665,12 @@
       (num-exp (num) (num-val num))
       (bool-exp (bool) (bool-val bool))
       (none-exp () (none-val))
+      (list-const-exp (lst) (list-val lst))
+      ;thunk exp
+      (thunk-exp (th)
+                 (cases thunk th
+                   (a-thunk (exp env)
+                            (value-of-thunk th))))
       )))
 
 (define my-print
@@ -698,7 +706,7 @@
   (lambda (ID rhs)
     (if (global-scope? the-scope-env)
         (let ([res (apply-env ID the-scope-env #f)]
-              [th (a-thunk rhs the-scope-env)])
+              [th (a-thunk (replace-var-exps rhs) the-scope-env)])
           (cases expval res
             (void-val ()
                       (let ([ref (newref th)])
@@ -710,7 +718,7 @@
                      (void-val))
             (else (report-type-error))))
         (let ([res (apply-env ID the-scope-env #f)]
-              [th (a-thunk rhs the-scope-env)])
+              [th (a-thunk (replace-var-exps rhs) the-scope-env)])
           (cases expval res
             (void-val ()
                       (let ([ref (newref th)])
@@ -738,15 +746,86 @@
                    (set! the-scope-env old-scope-env)
                    val))))))
 
+(define replace-var-exps
+  (lambda (e)
+    (cases exp e
+      (or-exp (exp1 exp2)
+              (or-exp
+               (replace-var-exps exp1)
+               (replace-var-exps exp2)))
+      (and-exp (exp1 exp2)
+               (and-exp
+                (replace-var-exps exp1)
+                (replace-var-exps exp2)))
+      (not-exp (exp)
+               (not-exp (replace-var-exps exp)))
+      (comparison-exp (sum compare-pairs)
+                      (comparison-exp
+                       (replace-var-exps sum)
+                       (map (lambda (e) (replace-var-exps e)) compare-pairs)))
+      (add-exp (exp1 exp2)
+               (add-exp
+                (replace-var-exps exp1)
+                (replace-var-exps exp2)))
+      (sub-exp (exp1 exp2)
+               (sub-exp
+                (replace-var-exps exp1)
+                (replace-var-exps exp2)))
+      (mul-exp (exp1 exp2)
+               (mul-exp
+                (replace-var-exps exp1)
+                (replace-var-exps exp2)))
+      (div-exp (exp1 exp2)
+               (div-exp
+                (replace-var-exps exp1)
+                (replace-var-exps exp2)))
+      (factor-exp (sign exp1)
+                  (factor-exp sign (replace-var-exps exp1)))
+      (power-exp (exp1 exp2)
+                 (power-exp
+                  (replace-var-exps exp1)
+                  (replace-var-exps exp2)))
+      (call-exp (proc arguments)
+                (call-exp
+                 (replace-var-exps proc)
+                 (replace-var-exps arguments)))
+      (arguments-exp (lst)
+                     (arguments-exp (map (lambda (e) (replace-var-exps e)) lst)))
+      (list-cell-exp (lst index)
+                     (list-cell-exp
+                      (replace-var-exps lst)
+                      (replace-var-exps index)))
+      (var-exp (var-name)
+               (let ([w (deref (expval->ref (apply-env var-name the-scope-env #t)))])
+                 (if (expval? w)
+                     (cases expval w
+                       (proc-val (proc) (var-exp var-name))
+                       (num-val (num) (num-exp num))
+                       (bool-val (bool) (bool-exp bool))
+                       (none-val () (none-exp))
+                       (list-val (lst) (list-const-exp lst))
+                       (else (report-type-error)))
+                     (thunk-exp w))))
+      (list-exp (lst)
+                (list-exp (map (lambda (e) (replace-var-exps e)) lst)))
+      ;const exps
+      (num-exp (num) e)
+      (bool-exp (bool) e)
+      (none-exp () e)
+      (list-const-exp (lst) e)
+      ;thunk exp
+      (thunk-exp (th) e)
+      (else (report-type-error)))))
+
 ;------------------------------------------------------
 ;expval
 (define-datatype expval expval?
   (num-val (num number?))
   (bool-val (bool boolean?))
   (list-val (lst list?))
+  (none-val)
   (proc-val (proc proc?))
   (void-val)
-  (none-val)
   (ref-val (ref number?))
   (break-val)
   (continue-val)
@@ -814,7 +893,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "print_in.txt"))
+(define test-file-name (string-append test-dir "global_in.txt"))
 (evaluate test-file-name)
 
 
