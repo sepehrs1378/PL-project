@@ -212,7 +212,7 @@
 
     (cond
       [(file-exists? file-name)
-       (println (string-append "Test: " file-name))
+       (displayln (string-append "Test: " file-name))
        (define in (file->string file-name))
        (define lex-this (lambda (lexer input) (lambda () (lexer input))))
        (define my-lexer (lex-this lang-lexer (open-input-string in)))
@@ -227,18 +227,6 @@
       )
    )
  )
-
-
-;------------------------------------------------------
-;print function
-;(define (atom? x) (not (pair? x)))
-
-;(define (print inp)
-;  (cond
-;    [(list? inp) (for-each (lambda (each_atom) (display each_atom) (display " ")) inp) (newline)]
-;    [(atom? inp) (display inp)]
-;   )
-; )
 
 ;------------------------------------------------------
 ;store: Each location may have arbitrary type of value.
@@ -487,40 +475,9 @@
                          (void-val)))
       (print-stmt-exp (atom)
                       (let ([val (value-of atom)])
-                        (cases expval val
-                          (num-val (num)
-                             (if (integer? num)
-                                 (println num)
-                                 (println (exact->inexact num))
-                                   ))
-                          (bool-val (bool)
-                             (if (eqv? bool #t)
-                                 (displayln "True")
-                                 (displayln "False")
-                                    ))
-                          (none-val () displayln "")
-                          (list-val (lst)
-                             (display "[")
-                             (for ([e (in-list lst)])
-                               (cases expval e
-                                 (num-val (num)
-                                          (if (integer? num)
-                                              (print num)
-                                              (print (exact->inexact num))
-                                              ))
-                                 (bool-val (bool)
-                                           (if (eqv? bool #t)
-                                               (display "True")
-                                               (display "False")
-                                               ))
-                                 (none-val () display "")
-                                 (else (report-type-error)))
-                               (display " ")
-                             )
-                               (displayln "]")
-)
-                             (else (report-type-error)))
-                          (void-val)))
+                        (my-print val)
+                        (displayln "")
+                        (void-val)))
       (pass-exp ()
                 (void-val))
       (break-exp ()
@@ -708,6 +665,35 @@
       (none-exp () (none-val))
       )))
 
+(define my-print
+  (lambda (val)
+    (cases expval val
+      (num-val (num)
+               (if (integer? num)
+                   (print num)
+                   (print (exact->inexact num))))
+      (bool-val (bool)
+                  (if bool
+                      (display "True")
+                      (display "False")))
+      (none-val ()
+                (display "None"))
+        (list-val (lst)
+                  (begin
+                    (display "[")
+                    (let loop ([lst lst])
+                      (if (null? lst)
+                          (void-val)
+                          (begin
+                            (my-print (car lst))
+                            (if (null? (cdr lst))
+                                (display "")
+                                (display ", "))
+                            (loop (cdr lst)))))
+                    (display "]")))
+      (else (report-type-error)))
+    (void-val)))
+
 (define assign
   (lambda (ID rhs)
     (if (global-scope? the-scope-env)
@@ -828,7 +814,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "temp_in.txt"))
+(define test-file-name (string-append test-dir "print_in.txt"))
 (evaluate test-file-name)
 
 

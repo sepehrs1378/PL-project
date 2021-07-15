@@ -1,5 +1,7 @@
-[1 2 3 4 5 6 7 True True False ]
+[1, 2, [1, False, None, True], 3, True, False]
 3.6666666666666665
 11.0
+8
 True
 False
+None

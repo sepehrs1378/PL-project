@@ -1,10 +1,14 @@
-lst = [1, 2, 3, 4, 5, 6, 7, True, True, False];
+lst = [1, 2, [1, False, None, True], 3, True, False];
 print(lst);
 a = 11/3;
 print(a);
 b = 11.0;
 print(b);
-c = True;
+c = 8;
 print(c);
-d = False;
+d = True;
 print(d);
+e = False;
+print(e);
+f = None;
+print(f);
