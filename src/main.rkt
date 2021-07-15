@@ -491,8 +491,8 @@
                         (cases expval val
                           (num-val (num) (println num))
                           (bool-val (bool) (println bool))
-                          (none-val () 33)
-                          (list-val (lst) 33)
+                          (none-val () (println none-val))
+                          (list-val (lst) (println lst))
                           (else (report-type-error)))
                         (void-val)))
       (pass-exp ()
@@ -802,7 +802,7 @@
 ;-------------------------------------------------------
 ;test: Tests' forlder is "tests"
 (define test-dir "../tests/")
-(define test-file-name (string-append test-dir "arithmetic_in.txt"))
+(define test-file-name (string-append test-dir "list_in.txt"))
 (evaluate test-file-name)
 
 
