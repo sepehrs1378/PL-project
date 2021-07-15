@@ -899,7 +899,7 @@
                      "comparison_in.txt"
                      "default-param_in.txt"
                      "fib-function_in.txt"
-                     "for-break_in_in.txt"
+                     "for-break_in.txt"
                      "for-continue_in.txt"
                      "for-simple_in.txt"
                      "global_in.txt"

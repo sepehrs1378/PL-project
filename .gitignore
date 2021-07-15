@@ -30,3 +30,4 @@ compiled/
 # End of https://www.toptal.com/developers/gitignore/api/racket,scheme
 
 temp
+doc.pdf
